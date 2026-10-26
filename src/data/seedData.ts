@@ -10,8 +10,8 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
     title: 'في البدء كان الكلمة وشهادة يوحنا المعمدان',
     keyVerse: 'وَالْكَلِمَةُ صَارَ جَسَدًا وَحَلَّ بَيْنَنَا، وَرَأَيْنَا مَجْدَهُ، مَجْدًا كَمَا لِوَحِيدٍ مِنَ الآبِ، مَمْلُوءًا نِعْمَةً وَحَقًّا. (يو 1: 14)',
     reflection: 'يعلن لنا القديس يوحنا اللاهوتي لاهوت السيد المسيح الأزلي وتجسده الخلاصي لأجل فدائنا. كما يقدم لنا يوحنا المعمدان نموذجاً عظيماً للاتضاع الحقيقي حين قال عن نفسه: "لَسْتُ أَنَا الْمَسِيحَ" و"يَنْبَغِي أَنَّ ذلِكَ يَزِيدُ وَأَنِّي أَنَا أَنْقُصُ".',
-    audioUrl: 'https://media.blubrry.com/coptic_audio/archive.org/download/StTakla.Org-Arabic-Bible-Audio-04-John/43_John_01.mp3',
-    audioDuration: '5:42',
+    audioUrl: 'https://audio-bible-cdn.youversionapi.com/36/32k/JHN/1-e0149e1e51e6db4fc76fcb3b8205e4b2.mp3',
+    audioDuration: '8:24',
     totalPoints: 20,
     published: true,
     verses: [
