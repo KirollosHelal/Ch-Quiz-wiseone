@@ -312,11 +312,16 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       {/* Header with progress */}
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-stone-200">
         <div>
-          <span className="text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1 rounded-full">
-            السؤال {currentStepIndex + 1} من {questions.length}
-          </span>
-          <h2 className="text-sm text-stone-500 mt-1 font-medium">
-            {quiz.bookName} - الأصحاح {quiz.chapterNumber}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-black text-amber-900 bg-amber-100 px-3 py-1 rounded-full">
+              {quiz.dayLabel || `مسابقة اليوم ${quiz.dayNumber}`}
+            </span>
+            <span className="text-xs text-stone-500">
+              السؤال {currentStepIndex + 1} من {questions.length}
+            </span>
+          </div>
+          <h2 className="text-sm text-stone-700 mt-1 font-bold">
+            {quiz.bookName} - الأصحاح {quiz.chapterNumber} ({quiz.date})
           </h2>
         </div>
 

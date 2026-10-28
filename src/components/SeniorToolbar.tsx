@@ -1,22 +1,20 @@
 import React from 'react';
-import { Type, Eye, Volume2, UserCheck, Shield, Sparkles } from 'lucide-react';
-import { SeniorSettings, StorageService } from '../services/storage';
+import { Type, Eye, Shield, Sparkles, User as UserIcon, LogIn } from 'lucide-react';
+import { SeniorSettings } from '../services/storage';
 import { User } from '../types';
 
 interface SeniorToolbarProps {
   settings: SeniorSettings;
   onUpdateSettings: (newSettings: SeniorSettings) => void;
   currentUser: User;
-  onSelectUser: (user: User) => void;
-  allUsers: User[];
+  onOpenAuth: () => void;
 }
 
 export const SeniorToolbar: React.FC<SeniorToolbarProps> = ({
   settings,
   onUpdateSettings,
   currentUser,
-  onSelectUser,
-  allUsers,
+  onOpenAuth,
 }) => {
   const fontSizes = [
     { level: 0, label: 'عادي (أ)', class: 'text-base' },
@@ -37,11 +35,11 @@ export const SeniorToolbar: React.FC<SeniorToolbarProps> = ({
   return (
     <div className="bg-amber-950 text-amber-100 border-b border-amber-900/60 px-4 py-2 text-sm shadow-sm">
       <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Elderly Accessibility Controls */}
+        {/* Left: Accessibility Controls for Ejtimaa Al-Hokamaa */}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-amber-300 font-medium text-xs flex items-center gap-1.5 whitespace-nowrap">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            تسهيلات القراءة لكبار السن:
+            تسهيلات القراءة لاجتماع الحكماء:
           </span>
 
           {/* Font Size button */}
@@ -72,34 +70,36 @@ export const SeniorToolbar: React.FC<SeniorToolbarProps> = ({
           </button>
         </div>
 
-        {/* Right: Quick Switcher between Parishioner and Servant */}
+        {/* Right: Authenticated User Display (No free dropdown switcher) */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-amber-300/80 whitespace-nowrap">المستخدم الحالي:</span>
-          <select
-            value={currentUser.id}
-            onChange={(e) => {
-              const selected = allUsers.find(u => u.id === e.target.value);
-              if (selected) {
-                StorageService.setCurrentUser(selected.id);
-                onSelectUser(selected);
-              }
-            }}
-            className="bg-amber-900/90 text-amber-100 border border-amber-700 rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-amber-400 focus:outline-none font-medium cursor-pointer"
-          >
-            {allUsers.map((u) => (
-              <option key={u.id} value={u.id} className="bg-stone-900 text-white">
-                {u.role === 'admin' ? '👑 [الخادم المسؤول] ' : u.ageGroup === 'senior' ? '👴 [كبار السن] ' : '👤 '}
-                {u.fullName} ({u.totalPoints} نقطة)
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1.5 bg-amber-900/80 px-2.5 py-1 rounded-lg border border-amber-800/80">
+            <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-stone-300 text-[11px]">المستخدم الحالي:</span>
+            <span className="font-bold text-amber-100 text-xs">{currentUser.fullName}</span>
+            <span className="font-mono text-amber-300 font-bold">({currentUser.totalPoints}ن)</span>
+          </div>
 
-          {currentUser.role === 'admin' && (
-            <span className="bg-amber-400 text-amber-950 text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap flex items-center gap-1">
+          {currentUser.role === 'admin' ? (
+            <span className="bg-amber-400 text-amber-950 text-[10px] px-2 py-0.5 rounded font-black whitespace-nowrap flex items-center gap-1">
               <Shield className="w-3 h-3" />
-              حساب الخادم
+              كيرلس هلال (المشرف العام)
             </span>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="bg-amber-400/90 hover:bg-amber-400 text-stone-950 text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap cursor-pointer transition-colors"
+            >
+              دخول كمسؤول
+            </button>
           )}
+
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-1 text-amber-300 hover:text-white underline text-[11px] font-medium pr-1 cursor-pointer"
+          >
+            <LogIn className="w-3 h-3" />
+            <span>تبديل / تسجيل الخروج</span>
+          </button>
         </div>
       </div>
     </div>

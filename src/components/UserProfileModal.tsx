@@ -32,7 +32,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
           <h2 className="text-2xl font-extrabold text-stone-900">{user.fullName}</h2>
           <div className="flex items-center justify-center gap-2 text-xs text-stone-500">
-            <span>{user.ageGroup === 'senior' ? 'كبار السن (بركة الكنيسة)' : 'عضو بالمسابقة'}</span>
+            <span>{user.ageGroup === 'senior' ? 'اجتماع الحكماء' : user.role === 'admin' ? 'خادم مسؤول (المشرف العام)' : 'عضو بالمسابقة'}</span>
             <span>·</span>
             <span className="flex items-center gap-1 font-mono">
               <Phone className="w-3 h-3" />

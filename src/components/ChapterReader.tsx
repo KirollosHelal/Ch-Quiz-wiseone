@@ -43,10 +43,12 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/85 to-stone-900/60 -z-10" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2">
-            <span>الكنيسة القبطية الأرثوذكسية</span>
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2 flex-wrap">
+            <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-0.5 rounded-lg text-xs">
+              {quiz.dayLabel || `اليوم ${quiz.dayNumber}`}
+            </span>
             <span>·</span>
-            <span>مسابقة الأصحاح اليومي</span>
+            <span className="font-mono text-amber-200">{quiz.date}</span>
             <span>·</span>
             <span>{testamentLabel}</span>
           </div>

@@ -86,7 +86,7 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
             </h2>
             <p className="text-xs text-stone-500">
               {isAdmin
-                ? 'خاص بالخادم: تسجيل كبار السن أو المخدومين الذين لا يستطيعون التسجيل بأنفسهم'
+                ? 'خاص بالخادم: تسجيل أعضاء اجتماع الحكماء أو المخدومين الذين لا يستطيعون التسجيل بأنفسهم'
                 : 'انضم لمسابقة الكتاب المقدس اليومية واجمع النقاط'}
             </p>
           </div>
@@ -108,7 +108,7 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
               }`}
             >
               <HeartHandshake className="w-4 h-4" />
-              <span>تسجيل نيابة عن مخدوم (كبار السن)</span>
+              <span>تسجيل نيابة عن مخدوم (اجتماع الحكماء)</span>
             </button>
             <button
               type="button"
@@ -120,7 +120,7 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>تسجيل مستخدم عادي</span>
+              <span>تسجيل متسابق جديد</span>
             </button>
           </div>
         )}
@@ -171,10 +171,10 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
                 onChange={(e) => setAgeGroup(e.target.value as AgeGroup)}
                 className="w-full p-3 rounded-xl border border-stone-300 text-sm font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
               >
-                <option value="senior">👴 كبار السن ومسني الكنيسة (البركة)</option>
+                <option value="senior">👴 اجتماع الحكماء</option>
                 <option value="youth">👦 الشباب والخريجون</option>
                 <option value="family">👨‍👩‍👧‍👦 أفراد الأسرة</option>
-                <option value="servant">☦ خادم كنسي</option>
+                <option value="servant">☦ خادم كنسي (صلاحية خاصة للخادم)</option>
               </select>
             </div>
 

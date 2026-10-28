@@ -2,8 +2,11 @@ import { DailyQuiz, User, PointLog } from '../types';
 
 export const INITIAL_QUIZZES: DailyQuiz[] = [
   {
-    id: 'quiz-john-1',
+    id: 'quiz-day-3-john-1',
+    dayNumber: 3,
+    dayLabel: 'اليوم الثالث (اليوم الحالي)',
     date: new Date().toISOString().split('T')[0], // Today
+    isMainToday: true,
     testament: 'new',
     bookName: 'إنجيل يوحنا',
     chapterNumber: 1,
@@ -54,7 +57,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q1-2',
         type: 'complete',
-        title: 'أكمل الآية الشهيرة من إنجيل يوحنا الأصحاح الأول:',
+        title: 'أكمل الآية الشهيرة من مسابقة اليوم الثالث:',
         verseWithBlank: 'وَالْكَلِمَةُ صَارَ [...] وَحَلَّ بَيْنَنَا، وَرَأَيْنَا مَجْدَهُ، مَجْدًا كَمَا لِوَحِيدٍ مِنَ الآبِ',
         blankAnswer: 'جسداً',
         wordBank: ['جسداً', 'ملكاً', 'نوراً', 'صوتاً'],
@@ -65,7 +68,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q1-3',
         type: 'true_false',
-        title: 'صح أم خطأ في النص الإنجيلي:',
+        title: 'صح أم خطأ في النص الإنجيلي لليوم الثالث:',
         statement: 'عندما سأل الكهنة واللاويون يوحنا المعمدان من أنت، شهد وقال: "نعم أنا هو المسيح المنتظر".',
         isCorrect: false,
         points: 5,
@@ -75,7 +78,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q1-4',
         type: 'short_answer',
-        title: 'سؤال تأملي مقالي قصير:',
+        title: 'سؤال تأملي مقالي لليوم الثالث:',
         questionPrompt: 'ما هو اللقب النبوي العظيم الذي أطلقه يوحنا المعمدان على الرب يسوع حين رآه مقبلاً إليه في الآية 29؟',
         modelAnswer: 'حمل الله الذي يرفع خطية العالم',
         keywords: ['حمل الله', 'يرفع خطية العالم', 'الحمل', 'فادي', 'ذبيحة'],
@@ -87,8 +90,11 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
     ]
   },
   {
-    id: 'quiz-psalm-23',
+    id: 'quiz-day-2-psalm-23',
+    dayNumber: 2,
+    dayLabel: 'اليوم الثاني (أمس)',
     date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
+    isMainToday: false,
     testament: 'old',
     bookName: 'سفر المزامير',
     chapterNumber: 23,
@@ -111,7 +117,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q2-1',
         type: 'multiple_choice',
-        title: 'ما الذي يعزي المرتل إذا سار في وادي ظل الموت؟',
+        title: 'ما الذي يعزي المرتل إذا سار في وادي ظل الموت في اليوم الثاني؟',
         options: [
           'الذهب والفضة',
           'عصاك وعكازك',
@@ -126,7 +132,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q2-2',
         type: 'complete',
-        title: 'أكمل خاتمة المزمور المبارك:',
+        title: 'أكمل خاتمة مزمور اليوم الثاني المبارك:',
         verseWithBlank: 'إِنَّمَا خَيْرٌ وَرَحْمَةٌ يَتْبَعَانِنِي كُلَّ أَيَّامِ حَيَاتِي، وَأَسْكُنُ فِي [...] إِلَى مَدَى الأَيَّامِ.',
         blankAnswer: 'بيت الرب',
         wordBank: ['بيت الرب', 'أورشليم', 'الهيكل', 'البرية'],
@@ -137,7 +143,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q2-3',
         type: 'true_false',
-        title: 'صح أم خطأ في مزمور 23:',
+        title: 'صح أم خطأ في مزمور اليوم الثاني:',
         statement: 'يقول داود النبي: "ترتب قدامي مائدة تجاه مضايقيّ، مسحت بالدهن رأسي، كأسي رَيَّا".',
         isCorrect: true,
         points: 5,
@@ -147,8 +153,11 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
     ]
   },
   {
-    id: 'quiz-1cor-13',
+    id: 'quiz-day-1-1cor-13',
+    dayNumber: 1,
+    dayLabel: 'اليوم الأول',
     date: new Date(Date.now() - 172800000).toISOString().split('T')[0], // 2 days ago
+    isMainToday: false,
     testament: 'new',
     bookName: 'رسالة كورنثوس الأولى',
     chapterNumber: 13,
@@ -174,7 +183,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q3-1',
         type: 'multiple_choice',
-        title: 'ما هي أعظم الفضائل الثلاث الثابتة حسب الآية 13؟',
+        title: 'ما هي أعظم الفضائل الثلاث الثابتة في اليوم الأول حسب الآية 13؟',
         options: [
           'الإيمان',
           'الرجاء',
@@ -189,7 +198,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q3-2',
         type: 'true_false',
-        title: 'صح أم خطأ في صفات المحبة:',
+        title: 'صح أم خطأ في صفات المحبة لليوم الأول:',
         statement: 'المحبة تطلب ما لنفسها وتفرح بالإثم.',
         isCorrect: false,
         points: 5,
@@ -199,7 +208,7 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
       {
         id: 'q3-3',
         type: 'complete',
-        title: 'أكمل الآية الرائعة من رسالة كورنثوس:',
+        title: 'أكمل الآية الرائعة من مسابقة اليوم الأول:',
         verseWithBlank: 'اَلْمَحَبَّةُ [...] وَتَرْفُقُ. اَلْمَحَبَّةُ لاَ تَحْسِدُ. اَلْمَحَبَّةُ لاَ تَتَفَاخَرُ، وَلاَ تَنْتَفِخُ.',
         blankAnswer: 'تتأنى',
         wordBank: ['تتأنى', 'تغضب', 'تسرع', 'تطلب'],
@@ -213,22 +222,26 @@ export const INITIAL_QUIZZES: DailyQuiz[] = [
 
 export const INITIAL_USERS: User[] = [
   {
-    id: 'user-admin',
-    fullName: 'أبونا / الخادم المشرف (مسؤول المسابقة)',
+    id: 'user-admin-kirillos',
+    fullName: 'كيرلس هلال (الخادم المسؤول)',
+    email: 'kirilloshelal@gmail.com',
+    password: '123456789',
     phone: '01220001111',
     ageGroup: 'servant',
     role: 'admin',
-    totalPoints: 120,
-    quizzesSolved: 8,
-    currentStreak: 8,
+    totalPoints: 200,
+    quizzesSolved: 12,
+    currentStreak: 12,
     registeredBy: 'self',
-    servantNotes: 'حساب إدارة المسابقة وإضافة الأصحاحات وتعديل الدرجات',
+    servantNotes: 'المشرف العام وأدمن مسابقة الكتاب المقدس',
     createdAt: '2026-10-01',
     submissions: []
   },
   {
     id: 'user-senior-1',
     fullName: 'عم سمير حنا تواضروس',
+    email: 'samir@gmail.com',
+    password: '123',
     phone: '01001234567',
     ageGroup: 'senior',
     role: 'user',
@@ -236,11 +249,12 @@ export const INITIAL_USERS: User[] = [
     quizzesSolved: 10,
     currentStreak: 10,
     registeredBy: 'admin',
-    servantNotes: 'تم تسجيله بواسطة خادم اجتماع المسنين لعدم معرفته بكتابة الحسابات الرقمية. مواظب يومياً ومحب لسماع الصوت.',
+    servantNotes: 'تم تسجيله بواسطة خادم اجتماع الحكماء لعدم معرفته بكتابة الحسابات الرقمية. مواظب يومياً ومحب لسماع الصوت.',
     createdAt: '2026-10-10',
     submissions: [
       {
-        quizId: 'quiz-psalm-23',
+        quizId: 'quiz-day-2-psalm-23',
+        dayNumber: 2,
         date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
         submittedAt: '2026-10-24T10:30:00Z',
         score: 15,
@@ -253,6 +267,8 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-senior-2',
     fullName: 'تانت مريم فهيم غالي',
+    email: 'mary@gmail.com',
+    password: '123',
     phone: '01239876543',
     ageGroup: 'senior',
     role: 'user',
@@ -267,6 +283,8 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-senior-3',
     fullName: 'عم إبراهيم مرقص نجيب',
+    email: 'ibrahim@gmail.com',
+    password: '123',
     phone: '01123456789',
     ageGroup: 'senior',
     role: 'user',
@@ -281,6 +299,8 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-youth-1',
     fullName: 'مينا عادل شفيق',
+    email: 'mina@gmail.com',
+    password: '123',
     phone: '01099887766',
     ageGroup: 'youth',
     role: 'user',
@@ -295,6 +315,8 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-family-1',
     fullName: 'أسرة د. بيشوي كمال وعائلته',
+    email: 'bishoy@gmail.com',
+    password: '123',
     phone: '01011223344',
     ageGroup: 'family',
     role: 'user',
@@ -316,7 +338,7 @@ export const INITIAL_LOGS: PointLog[] = [
     change: 10,
     reason: 'مكافأة تشجيعية لحفظ مزمور 23 كاملاً وتسميعه في الكنيسة',
     date: '2026-10-24 11:30',
-    adminName: 'الخادم المشرف'
+    adminName: 'كيرلس هلال'
   },
   {
     id: 'log-2',
@@ -325,6 +347,6 @@ export const INITIAL_LOGS: PointLog[] = [
     change: 15,
     reason: 'إجابة متميزة وملهمة في السؤال التأملي لإنجيل يوحنا',
     date: '2026-10-23 18:45',
-    adminName: 'الخادم المشرف'
+    adminName: 'كيرلس هلال'
   }
 ];

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { 
   PlusCircle, BookOpen, Users, Award, Trash2, Edit3, 
   CheckCircle, FileText, Download, Upload, RefreshCw, 
-  Plus, Check, X, SlidersHorizontal, UserPlus, Sparkles 
+  Plus, Check, X, SlidersHorizontal, UserPlus, Sparkles,
+  Database, Server, Copy, ExternalLink, ShieldCheck, AlertCircle, Calendar, Star
 } from 'lucide-react';
-import { DailyQuiz, Question, QuestionType, User, ScriptureVerse } from '../types';
+import { DailyQuiz, Question, QuestionType, User, ScriptureVerse, DatabaseConfig } from '../types';
 import { StorageService } from '../services/storage';
 
 interface AdminDashboardProps {
@@ -24,10 +25,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenRegisterUser,
   onSelectQuizToRead,
 }) => {
-  const [activeTab, setActiveTab] = useState<'quizzes' | 'users' | 'add_quiz' | 'point_logs'>('quizzes');
+  const [activeTab, setActiveTab] = useState<'quizzes' | 'users' | 'add_quiz' | 'point_logs' | 'database'>('quizzes');
 
   // New Chapter Form State
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
+  const [dayNumber, setDayNumber] = useState<number>(quizzes.length + 1);
+  const [dayLabel, setDayLabel] = useState<string>(`اليوم ${quizzes.length + 1}`);
+  const [isMainToday, setIsMainToday] = useState<boolean>(true);
   const [bookName, setBookName] = useState<string>('إنجيل متى');
   const [chapterNumber, setChapterNumber] = useState<number>(5);
   const [testament, setTestament] = useState<'old' | 'new'>('new');
@@ -82,6 +86,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [saKeywords, setSaKeywords] = useState<string>('أعمال صالحة, محبة, سلام, نور, تمجيد الله');
 
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
+
+  // Database Tab States (Hostinger MySQL / phpMyAdmin)
+  const [dbConfig, setDbConfig] = useState<DatabaseConfig>(() => StorageService.getDatabaseConfig());
+  const [isTestingDb, setIsTestingDb] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isSyncingTables, setIsSyncingTables] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   const resetQuestionForm = () => {
     setIsAddingQuestion(false);
@@ -194,7 +206,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const totalPts = questionsList.reduce((sum, q) => sum + q.points, 0);
 
     const newQuiz: DailyQuiz = {
-      id: editingQuizId || 'quiz-' + Date.now(),
+      id: editingQuizId || 'quiz-day-' + dayNumber + '-' + Date.now(),
+      dayNumber: Number(dayNumber),
+      dayLabel: dayLabel.trim() || `اليوم ${dayNumber}`,
+      isMainToday: isMainToday,
       date: quizDate,
       testament,
       bookName: bookName.trim(),
@@ -211,7 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     };
 
     StorageService.saveOrUpdateQuiz(newQuiz);
-    setSaveSuccessNotice('تم حفظ الأصحاح والمسابقة ونشرها للمتسابقين بنجاح!');
+    setSaveSuccessNotice(`تم حفظ مسابقة «${newQuiz.dayLabel}» بنجاح!`);
     setTimeout(() => {
       setSaveSuccessNotice(null);
       setActiveTab('quizzes');
@@ -221,6 +236,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleEditQuiz = (q: DailyQuiz) => {
     setEditingQuizId(q.id);
+    setDayNumber(q.dayNumber || 1);
+    setDayLabel(q.dayLabel || `اليوم ${q.dayNumber || 1}`);
+    setIsMainToday(!!q.isMainToday);
     setBookName(q.bookName);
     setChapterNumber(q.chapterNumber);
     setTestament(q.testament);
@@ -236,9 +254,88 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteQuiz = (quizId: string) => {
-    if (confirm('هل أنت متأكد من حذف هذا الأصحاح ومسابقته؟')) {
+    if (confirm('هل أنت متأكد من حذف هذا اليوم ومسابقته؟')) {
       StorageService.deleteQuiz(quizId);
     }
+  };
+
+  // Test Hostinger MySQL DB connection via backend
+  const handleTestDatabaseConnection = async () => {
+    setIsTestingDb(true);
+    setDbTestResult(null);
+
+    StorageService.saveDatabaseConfig(dbConfig);
+
+    try {
+      const res = await fetch('/api/db/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbConfig),
+      });
+      const data = await res.json();
+      setDbTestResult({
+        success: data.success,
+        message: data.message,
+      });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
+    } catch (err: any) {
+      setDbTestResult({
+        success: false,
+        message: `تعذر الاتصال بالخادم: ${err.message || 'خطأ غير متوقع'}`,
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  // Auto-sync / create tables in MySQL
+  const handleSyncTables = async () => {
+    setIsSyncingTables(true);
+    setSyncResult(null);
+
+    try {
+      const res = await fetch('/api/db/sync-tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbConfig),
+      });
+      const data = await res.json();
+      setSyncResult({
+        success: data.success,
+        message: data.message,
+      });
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: `تعذر تنفيذ سكربت الجداول: ${err.message}`,
+      });
+    } finally {
+      setIsSyncingTables(false);
+    }
+  };
+
+  // Download SQL for phpMyAdmin
+  const handleDownloadSql = () => {
+    const sql = StorageService.generatePhpMyAdminSql();
+    const blob = new Blob([sql], { type: 'text/sql;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `coptic_bible_quiz_${dbConfig.database || 'db'}.sql`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Copy SQL script to clipboard
+  const handleCopySql = () => {
+    const sql = StorageService.generatePhpMyAdminSql();
+    navigator.clipboard.writeText(sql);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2000);
   };
 
   const logs = StorageService.getPointLogs();
@@ -250,13 +347,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div>
           <span className="text-amber-400 font-bold text-xs flex items-center gap-1.5 mb-2">
             <Sparkles className="w-3.5 h-3.5" />
-            لوحة تحكم وإدارة مسابقة الكتاب المقدس
+            لوحة تحكم المشرف العام (كيرلس هلال)
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            خدمة الأصحاح اليومي وإدارة المتسابقين
+            إدارة مسابقة الأيام وقاعدة البيانات
           </h1>
           <p className="text-stone-400 text-xs sm:text-sm mt-1">
-            إضافة أصحاحات جديدة، تسجيل مخدومين كبار السن، وتعديل النقاط والدرجات
+            إضافة أيام جديدة، تسجيل وتعديل نقاط المخدومين، وربط قاعدة بيانات Hostinger عبر phpMyAdmin
           </p>
         </div>
 
@@ -264,12 +361,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             onClick={() => {
               setEditingQuizId(null);
+              setDayNumber(quizzes.length + 1);
+              setDayLabel(`اليوم ${quizzes.length + 1}`);
               setActiveTab('add_quiz');
             }}
             className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>إضافة أصحاح ومسابقة يومية</span>
+            <span>إضافة يوم ومسابقة جديدة</span>
           </button>
         </div>
       </div>
@@ -277,10 +376,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-stone-200 pb-2 overflow-x-auto">
         {[
-          { id: 'quizzes', label: '📖 الأصحاحات اليومية والمسابقات', count: quizzes.length },
-          { id: 'users', label: '👥 إدارة المتسابقين والمخدومين', count: users.length },
-          { id: 'add_quiz', label: editingQuizId ? '✏️ تعديل الأصحاح' : '➕ إضافة أصحاح جديد' },
-          { id: 'point_logs', label: '📜 سجل تعديلات النقاط', count: logs.length },
+          { id: 'quizzes', label: '📅 أيام المسابقة والأرشيف', count: quizzes.length },
+          { id: 'users', label: '👥 المتسابقون والمخدومون', count: users.length },
+          { id: 'add_quiz', label: editingQuizId ? '✏️ تعديل اليوم' : '➕ إضافة يوم جديد' },
+          { id: 'point_logs', label: '📜 سجل النقاط', count: logs.length },
+          { id: 'database', label: '🗄️ قاعدة بيانات Hostinger (SQL)' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -303,23 +403,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         ))}
       </div>
 
-      {/* TAB 1: Quizzes List */}
+      {/* TAB 1: Quizzes / Days List */}
       {activeTab === 'quizzes' && (
         <div className="bg-white rounded-3xl border border-stone-200 shadow-md divide-y divide-stone-100 overflow-hidden">
           <div className="p-5 flex items-center justify-between">
-            <h3 className="font-bold text-stone-900 text-base">الأصحاحات المنشورة</h3>
-            <span className="text-xs text-stone-500">{quizzes.length} أصحاح جاهز للمتسابقين</span>
+            <h3 className="font-bold text-stone-900 text-base">الأيام المنشورة بالمسابقة</h3>
+            <span className="text-xs text-stone-500">{quizzes.length} يوم متاح للمتسابقين</span>
           </div>
 
-          {quizzes.map((q) => (
+          {[...quizzes].sort((a, b) => (b.dayNumber || 0) - (a.dayNumber || 0)).map((q) => (
             <div key={q.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-stone-50">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-md">
-                    {q.date}
+                  <span className="text-xs font-black text-amber-900 bg-amber-100 px-3 py-1 rounded-xl">
+                    اليوم {q.dayNumber}
                   </span>
-                  <span className="text-xs text-stone-500">
-                    {q.testament === 'new' ? 'العهد الجديد' : 'العهد القديم'}
+                  {q.isMainToday && (
+                    <span className="text-xs font-bold bg-amber-500 text-stone-950 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-current" />
+                      اليوم الرئيسي الحالي
+                    </span>
+                  )}
+                  <span className="text-xs text-stone-500 font-mono">
+                    {q.date}
                   </span>
                 </div>
                 <h4 className="font-extrabold text-stone-900 text-lg">
@@ -336,11 +442,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               <div className="flex items-center gap-2 self-end md:self-center">
+                {!q.isMainToday && (
+                  <button
+                    onClick={() => StorageService.setMainDay(q.id)}
+                    className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    title="جعله اليوم الرئيسي الحالي"
+                  >
+                    تعيين كـ رئيسي
+                  </button>
+                )}
                 <button
                   onClick={() => onSelectQuizToRead(q)}
                   className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
-                  معاينة وقراءة
+                  معاينة
                 </button>
                 <button
                   onClick={() => handleEditQuiz(q)}
@@ -352,7 +467,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   onClick={() => handleDeleteQuiz(q.id)}
                   className="p-2 text-stone-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
-                  title="حذف الأصحاح"
+                  title="حذف هذا اليوم"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -368,7 +483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="p-5 border-b border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-stone-900 text-base">قائمة المتسابقين والمخدومين</h3>
-              <p className="text-xs text-stone-500">يمكنك تسجيل مخدومين جدد أو تعديل رصيد النقاط لأي متسابق</p>
+              <p className="text-xs text-stone-500">تسجيل مخدومين جدد أو تعديل رصيد النقاط لأي متسابق</p>
             </div>
             <button
               onClick={onOpenRegisterUser}
@@ -385,9 +500,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="font-bold text-stone-900 text-base">{u.fullName}</h4>
+                    {u.role === 'admin' && (
+                      <span className="text-[10px] bg-amber-500 text-stone-950 font-black px-2 py-0.5 rounded">
+                        👑 مسؤول
+                      </span>
+                    )}
                     {u.ageGroup === 'senior' && (
                       <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded">
-                        👴 كبار السن
+                        👴 اجتماع الحكماء
                       </span>
                     )}
                     {u.registeredBy === 'admin' && (
@@ -397,6 +517,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-stone-500 mt-1">
+                    {u.email && <span>البريد: {u.email}</span>}
                     <span>الهاتف: {u.phone}</span>
                     <span>·</span>
                     <span>حل {u.quizzesSolved} مسابقة</span>
@@ -429,16 +550,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB 3: Add / Edit Chapter Form */}
+      {/* TAB 3: Add / Edit Chapter Form by Day */}
       {activeTab === 'add_quiz' && (
         <form onSubmit={handleSaveWholeQuiz} className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-stone-200">
             <div>
               <h3 className="text-xl font-bold text-stone-900">
-                {editingQuizId ? 'تعديل الأصحاح والمسابقة' : 'إضافة أصحاح جديد ومسابقة يومية'}
+                {editingQuizId ? 'تعديل مسابقة اليوم' : 'إضافة يوم ومسابقة جديدة'}
               </h3>
               <p className="text-xs text-stone-500">
-                املأ بيانات السفر والأصحاح، رابط الصوت MP3، والأسئلة بأنواعها المختلفة
+                حدد رقم اليوم، وتاريخه، وبيانات السفر والأصحاح والتسجيل الصوتي والأسئلة
               </p>
             </div>
             {editingQuizId && (
@@ -462,7 +583,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* Grid row 1: Date, Testament, Book, Chapter */}
+          {/* Day configuration Row */}
+          <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+            <div>
+              <label className="block text-xs font-bold text-amber-900 mb-1">
+                رقم اليوم (بالترتيب): *
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={dayNumber}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1;
+                  setDayNumber(val);
+                  setDayLabel(`اليوم ${val}`);
+                }}
+                className="w-full p-2.5 rounded-xl border border-amber-300 bg-white font-mono text-base font-bold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-amber-900 mb-1">
+                تسمية اليوم في الواجهة:
+              </label>
+              <input
+                type="text"
+                value={dayLabel}
+                onChange={(e) => setDayLabel(e.target.value)}
+                placeholder="مثال: اليوم الأول، اليوم الثاني..."
+                className="w-full p-2.5 rounded-xl border border-amber-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center sm:pt-5">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-950">
+                <input
+                  type="checkbox"
+                  checked={isMainToday}
+                  onChange={(e) => setIsMainToday(e.target.checked)}
+                  className="w-4 h-4 text-amber-600 rounded"
+                />
+                <span>تعيين كـ «اليوم الرئيسي الحالي» في الصفحة الأولى</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Grid row: Date, Testament, Book, Chapter */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">تاريخ المسابقة:</label>
@@ -515,7 +683,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Chapter Title */}
           <div>
-            <label className="block text-xs font-bold text-stone-700 mb-1">عنوان الأصحاح أو موضوعه:</label>
+            <label className="block text-xs font-bold text-stone-700 mb-1">عنوان الأصحاح أو موضوع اليوم:</label>
             <input
               type="text"
               value={chapterTitle}
@@ -592,13 +760,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           </div>
 
-          {/* ======================================================== */}
-          {/* QUESTIONS SECTION & TYPE SELECTION BUILDER */}
-          {/* ======================================================== */}
+          {/* Questions section */}
           <div className="pt-6 border-t border-stone-200 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-extrabold text-stone-900 text-base">أسئلة المسابقة ({questionsList.length} سؤال)</h4>
+                <h4 className="font-extrabold text-stone-900 text-base">أسئلة اليوم ({questionsList.length} سؤال)</h4>
                 <p className="text-xs text-stone-500">اختر نوع السؤال قبل كتابته: اختيار من متعدد، أكمل، صح أم خطأ، أو مقالي</p>
               </div>
 
@@ -634,8 +800,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </span>
                     </div>
                     <h5 className="font-bold text-stone-900 text-sm">{q.title}</h5>
-                    {q.type === 'complete' && <p className="text-xs text-stone-600 mt-1">«{q.verseWithBlank}» (الجواب: {q.blankAnswer})</p>}
-                    {q.type === 'true_false' && <p className="text-xs text-stone-600 mt-1">«{q.statement}» (الجواب: {q.isCorrect ? 'صح' : 'خطأ'})</p>}
                   </div>
                   <button
                     type="button"
@@ -688,7 +852,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   ))}
                 </div>
 
-                {/* Common fields: Title & Points */}
+                {/* Common fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="sm:col-span-3">
                     <label className="block text-xs font-bold text-stone-700 mb-1">
@@ -698,12 +862,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       type="text"
                       value={qTitle}
                       onChange={(e) => setQTitle(e.target.value)}
-                      placeholder="مثال: من هو كاتب هذا السفر؟ أو اختر الإجابة الصحيحة:"
+                      placeholder="اكتب السؤال بوضوح..."
                       className="w-full p-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">الدرجة / النقاط:</label>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">النقاط:</label>
                     <input
                       type="number"
                       min={1}
@@ -793,7 +957,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         type="text"
                         value={tfStatement}
                         onChange={(e) => setTfStatement(e.target.value)}
-                        placeholder="اكتب العبارة ليحدد المتسابق صحتها من خطئها..."
+                        placeholder="اكتب العبارة ليحدد المتسابق صحتها..."
                         className="w-full p-2.5 rounded-xl border border-stone-300 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
@@ -845,42 +1009,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         className="w-full p-2 rounded-lg border border-stone-300 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1">كلمات دلالية للتقييم الأولي (مفصولة بفاصلة):</label>
-                      <input
-                        type="text"
-                        value={saKeywords}
-                        onChange={(e) => setSaKeywords(e.target.value)}
-                        placeholder="محبة, تواضع, صلاة"
-                        className="w-full p-2 rounded-lg border border-stone-300 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
                   </div>
                 )}
-
-                {/* Explanation & Verse Reference */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">شاهد الآية (مرجع الكتاب):</label>
-                    <input
-                      type="text"
-                      value={qVerseRef}
-                      onChange={(e) => setQVerseRef(e.target.value)}
-                      placeholder="مثال: يوحنا 1: 14"
-                      className="w-full p-2 rounded-lg border border-stone-300 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">شرح وتفسير الإجابة للمتسابق:</label>
-                    <input
-                      type="text"
-                      value={qExplanation}
-                      onChange={(e) => setQExplanation(e.target.value)}
-                      placeholder="توضيح يظهر للمتسابق بعد الحل لزيادة الفائدة..."
-                      className="w-full p-2 rounded-lg border border-stone-300 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button
@@ -895,23 +1025,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onClick={handleSaveQuestion}
                     className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm"
                   >
-                    تأكيد وإضافة السؤال للقائمة
+                    تأكيد وإضافة السؤال
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Form Actions */}
           <div className="flex items-center justify-between pt-6 border-t border-stone-200">
             <span className="text-xs text-stone-500">
-              إجمالي نقاط الأصحاح الحالية: <strong className="text-stone-800">{questionsList.reduce((s, q) => s + q.points, 0)} نقطة</strong>
+              إجمالي نقاط مسابقة اليوم: <strong className="text-stone-800">{questionsList.reduce((s, q) => s + q.points, 0)} نقطة</strong>
             </span>
             <button
               type="submit"
               className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all cursor-pointer text-sm"
             >
-              حفظ الأصحاح والمسابقة ونشرها 🚀
+              حفظ مسابقة اليوم ونشرها للمتسابقين 🚀
             </button>
           </div>
         </form>
@@ -945,12 +1074,247 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           ))}
+        </div>
+      )}
 
-          {logs.length === 0 && (
-            <div className="p-8 text-center text-stone-500 text-sm">
-              لا توجد تعديلات سابقة مسجلة.
+      {/* TAB 5: Database Configuration (Hostinger MySQL & phpMyAdmin) */}
+      {activeTab === 'database' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-stone-900 to-amber-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50">
+                <Database className="w-3.5 h-3.5" />
+                <span>ربط قاعدة بيانات Hostinger MySQL & phpMyAdmin</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-50">
+                إعدادات قاعدة البيانات والنسخ الاحتياطي SQL
+              </h2>
+              <p className="text-stone-300 text-xs sm:text-sm">
+                يمكنك توصيل قاعدة بيانات MySQL الخاصة بك على استضافة Hostinger أو تنزيل ملف SQL الجاهز للاستيراد المباشر في phpMyAdmin بنقرة واحدة!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadSql}
+                className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Download className="w-4 h-4" />
+                <span>تنزيل ملف bible_quiz.sql</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Connection Test Results */}
+          {dbTestResult && (
+            <div className={`p-4 rounded-2xl border text-sm font-bold flex items-center gap-3 ${
+              dbTestResult.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              {dbTestResult.success ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+              <span>{dbTestResult.message}</span>
             </div>
           )}
+
+          {syncResult && (
+            <div className={`p-4 rounded-2xl border text-sm font-bold flex items-center gap-3 ${
+              syncResult.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              {syncResult.success ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+              <span>{syncResult.message}</span>
+            </div>
+          )}
+
+          {/* DB Credentials Form */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+              <div>
+                <h3 className="font-extrabold text-stone-900 text-lg">بيانات الاتصال بـ Hostinger MySQL</h3>
+                <p className="text-xs text-stone-500">
+                  تجد هذه البيانات في لوحة تحكم Hostinger cPanel / hPanel &gt; Databases &gt; MySQL Databases
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                dbConfig.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+              }`}>
+                {dbConfig.isConnected ? 'متصل بقاعدة البيانات ✓' : 'غير متصل بعد'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  عنوان السيرفر (MySQL Host):
+                </label>
+                <input
+                  type="text"
+                  value={dbConfig.host}
+                  onChange={(e) => setDbConfig({ ...dbConfig, host: e.target.value })}
+                  placeholder="مثال: localhost أو srv123.main-hosting.eu"
+                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  المنفذ (Port):
+                </label>
+                <input
+                  type="number"
+                  value={dbConfig.port}
+                  onChange={(e) => setDbConfig({ ...dbConfig, port: parseInt(e.target.value) || 3306 })}
+                  placeholder="3306"
+                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  اسم قاعدة البيانات (Database Name):
+                </label>
+                <input
+                  type="text"
+                  value={dbConfig.database}
+                  onChange={(e) => setDbConfig({ ...dbConfig, database: e.target.value })}
+                  placeholder="مثال: u123456789_bible_quiz"
+                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  اسم المستخدم (Database User):
+                </label>
+                <input
+                  type="text"
+                  value={dbConfig.user}
+                  onChange={(e) => setDbConfig({ ...dbConfig, user: e.target.value })}
+                  placeholder="مثال: u123456789_kirillos"
+                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  كلمة مرور قاعدة البيانات (Password):
+                </label>
+                <input
+                  type="password"
+                  value={dbConfig.password}
+                  onChange={(e) => setDbConfig({ ...dbConfig, password: e.target.value })}
+                  placeholder="••••••••••••"
+                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={handleTestDatabaseConnection}
+                disabled={isTestingDb}
+                className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
+              >
+                <Server className="w-4 h-4 text-amber-400" />
+                <span>{isTestingDb ? 'جاري الفحص...' : 'اختبار الاتصال بقاعدة بيانات Hostinger'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncTables}
+                disabled={isSyncingTables}
+                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>{isSyncingTables ? 'جاري الإنشاء...' : 'إنشاء الجداول في سيرفر Hostinger تلقائياً'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* phpMyAdmin Instructions & SQL Export */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200">
+              <div>
+                <h3 className="font-extrabold text-stone-900 text-lg">
+                  استيراد الجداول مباشرة في phpMyAdmin على Hostinger
+                </h3>
+                <p className="text-xs text-stone-500">
+                  إذا كنت تفضل إدارة الجداول عبر واجهة phpMyAdmin، اتبع الخطوات البسيطة التالية:
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopySql}
+                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Copy className="w-3.5 h-3.5 text-stone-600" />
+                  <span>{copiedSql ? 'تم النسخ بنجاح! ✓' : 'نسخ كود SQL'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadSql}
+                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>تنزيل ملف .sql</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                  1
+                </span>
+                <h5 className="font-bold text-stone-900">فتح phpMyAdmin</h5>
+                <p className="text-stone-600">
+                  سجل الدخول إلى لوحة تحكم Hostinger، توجه إلى Databases ثم انقر على زر <strong>Enter phpMyAdmin</strong>.
+                </p>
+              </div>
+
+              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                  2
+                </span>
+                <h5 className="font-bold text-stone-900">اختيار قاعدة البيانات</h5>
+                <p className="text-stone-600">
+                  انقر على اسم قاعدة بياناتك من القائمة اليسرى في phpMyAdmin لتحديدها.
+                </p>
+              </div>
+
+              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                  3
+                </span>
+                <h5 className="font-bold text-stone-900">استيراد (Import)</h5>
+                <p className="text-stone-600">
+                  اضغط على تبويب <strong>Import (استيراد)</strong> في الشريط العلوي، واختر ملف <code>bible_quiz.sql</code> الذي قمت بتنزيله.
+                </p>
+              </div>
+
+              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                  4
+                </span>
+                <h5 className="font-bold text-stone-900">تنفيذ وحفظ</h5>
+                <p className="text-stone-600">
+                  اضغط على زر <strong>Go / تنفيذ</strong> بالأسفل. سيتم إنشاء الجداول وحساب أدمن كيرلس هلال فوراً!
+                </p>
+              </div>
+            </div>
+
+            {/* Code Preview snippet */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-stone-700 block">معاينة جزء من سكربت SQL التلقائي:</span>
+              <pre className="bg-stone-950 text-amber-200 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-48 border border-stone-800" dir="ltr">
+{StorageService.generatePhpMyAdminSql().substring(0, 1100)}
+...
+              </pre>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -32,7 +32,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   const getAgeGroupLabel = (group: AgeGroup) => {
     switch (group) {
       case 'senior':
-        return 'كبار السن (بركة الكنيسة)';
+        return 'اجتماع الحكماء';
       case 'youth':
         return 'شباب';
       case 'family':
@@ -166,7 +166,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto p-1 bg-stone-100 rounded-xl">
           {[
             { id: 'all', label: 'الجميع' },
-            { id: 'senior', label: '👴 كبار السن' },
+            { id: 'senior', label: '👴 اجتماع الحكماء' },
             { id: 'youth', label: 'شباب' },
             { id: 'family', label: 'أسر' },
           ].map((tab) => (

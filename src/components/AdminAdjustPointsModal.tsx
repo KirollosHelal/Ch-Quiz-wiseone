@@ -24,7 +24,7 @@ export const AdminAdjustPointsModal: React.FC<AdminAdjustPointsModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const quickReasons = [
-    'مكافأة تشجيعية لكبار السن لمواظبتهم',
+    'مكافأة تشجيعية لاجتماع الحكماء لمواظبتهم',
     'حفظ وتسميع آية اليوم في القداس',
     'إجابة مقالية متميزة في الأصحاح',
     'مشاركة الأسرة وحل المسابقة جماعياً',

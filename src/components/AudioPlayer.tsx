@@ -129,7 +129,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               التسجيل الصوتي للأصحاح
             </h3>
             <p className="text-xs text-stone-400">
-              استمع براحة وبصوت هادئ ونقي (مناسب لضعاف البصر وكبار السن)
+              استمع براحة وبصوت هادئ ونقي (مناسب لضعاف البصر واجتماع الحكماء)
             </p>
           </div>
         </div>

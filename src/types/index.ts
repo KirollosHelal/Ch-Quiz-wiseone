@@ -19,15 +19,15 @@ export interface MultipleChoiceQuestion extends BaseQuestion {
 
 export interface CompleteVerseQuestion extends BaseQuestion {
   type: 'complete';
-  verseWithBlank: string; // e.g. "وَالْكَلِمَةُ صَارَ [...] وَحَلَّ بَيْنَنَا"
-  blankAnswer: string;   // e.g. "جَسَدًا"
-  wordBank?: string[];   // Words to pick from for elderly ease
+  verseWithBlank: string;
+  blankAnswer: string;
+  wordBank?: string[];
 }
 
 export interface TrueFalseQuestion extends BaseQuestion {
   type: 'true_false';
   statement: string;
-  isCorrect: boolean; // true = صح, false = خطأ
+  isCorrect: boolean;
 }
 
 export interface ShortAnswerQuestion extends BaseQuestion {
@@ -51,7 +51,10 @@ export interface ScriptureVerse {
 
 export interface DailyQuiz {
   id: string;
+  dayNumber: number; // رقم اليوم: 1، 2، 3...
+  dayLabel?: string;  // اليوم الأول، اليوم الثاني...
   date: string; // YYYY-MM-DD
+  isMainToday?: boolean; // هل هذا هو اليوم الرئيسي الحالي
   testament: 'old' | 'new';
   bookName: string;
   chapterNumber: number;
@@ -68,6 +71,7 @@ export interface DailyQuiz {
 
 export interface UserQuizSubmission {
   quizId: string;
+  dayNumber?: number;
   date: string;
   submittedAt: string;
   score: number;
@@ -80,6 +84,8 @@ export interface UserQuizSubmission {
 export interface User {
   id: string;
   fullName: string;
+  email?: string;
+  password?: string;
   phone: string;
   ageGroup: AgeGroup;
   role: 'admin' | 'user';
@@ -96,8 +102,20 @@ export interface PointLog {
   id: string;
   userId: string;
   userName: string;
-  change: number; // positive or negative
+  change: number;
   reason: string;
   date: string;
   adminName: string;
+}
+
+export interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl: boolean;
+  isConnected?: boolean;
+  lastChecked?: string;
+  tablePrefix?: string;
 }
