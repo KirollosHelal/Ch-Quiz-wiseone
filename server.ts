@@ -12,29 +12,63 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Helper for MySQL connection with strict timeout (prevents Cloud Run 502/504 HTML gateway timeouts)
+  const connectMysqlWithTimeout = async (config: mysql.ConnectionOptions, timeoutMs = 3500): Promise<mysql.Connection> => {
+    let timer: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err: any = new Error('ETIMEDOUT');
+        err.code = 'ETIMEDOUT';
+        reject(err);
+      }, timeoutMs);
+    });
+
+    try {
+      const conn = await Promise.race([mysql.createConnection(config), timeoutPromise]);
+      clearTimeout(timer!);
+      return conn;
+    } catch (error) {
+      clearTimeout(timer!);
+      throw error;
+    }
+  };
+
+  const getFriendlyErrorMessage = (err: any, database: string, host: string) => {
+    if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+      return 'تم رفض الوصول (Access Denied). يرجى التأكد من اسم المستخدم وكلمة المرور وصلاحيات المستخدم في لوحة تحكم Hostinger.';
+    }
+    if (err.code === 'ER_BAD_DB_ERROR') {
+      return `قاعدة البيانات «${database}» غير موجودة في سيرفر Hostinger. يرجى إنشاؤها أولاً من phpMyAdmin أو cPanel.`;
+    }
+    if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
+      return `تعذر الاتصال بسيرفر Hostinger على «${host}». استضافة Hostinger المشتركة تمنع افتراضياً الاتصال الخارجي المباشر إلا بعد تفعيل (Remote MySQL). يمكنك بدلاً من ذلك استخدام الخيار الموصى به: اضغط زر «تنزيل ملف bible_quiz.sql» واستورده مباشرة داخل phpMyAdmin بنقرة واحدة!`;
+    }
+    return `فشل الاتصال: ${err.message || 'خطأ غير معروف'}`;
+  };
+
   // --- API: Test MySQL Connection (Hostinger phpMyAdmin) ---
   app.post('/api/db/test-connection', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     const { host, port, database, user, password, ssl } = req.body;
 
     if (!host || !database || !user) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: 'يرجى إدخال عنوان الخادم (Host)، واسم قاعدة البيانات (Database)، واسم المستخدم (User).',
       });
     }
 
     try {
-      const connection = await mysql.createConnection({
+      const connection = await connectMysqlWithTimeout({
         host,
         port: port ? parseInt(port) : 3306,
         user,
         password: password || '',
         database,
-        connectTimeout: 7000,
+        connectTimeout: 3000,
         ssl: ssl ? { rejectUnauthorized: false } : undefined,
-      });
+      }, 3500);
 
-      // Simple test query
       const [rows] = await connection.query('SELECT 1 + 1 AS solution, NOW() as server_time');
       await connection.end();
 
@@ -45,38 +79,40 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('MySQL connection error:', err);
-      let errorHelp = err.message;
-      if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-        errorHelp = 'تم رفض الوصول (Access Denied). يرجى التأكد من اسم المستخدم وكلمة المرور وصلاحيات المستخدم في Hostinger cPanel.';
-      } else if (err.code === 'ER_BAD_DB_ERROR') {
-        errorHelp = `قاعدة البيانات «${database}» غير موجودة في سيرفر Hostinger. يرجى إنشاؤها أولاً من phpMyAdmin أو cPanel.`;
-      } else if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
-        errorHelp = 'تعذر الوصول إلى عنوان الخادم. تأكد من عنوان Hostinger MySQL Host والسماح بالاتصال الخارجي (Remote MySQL) في Hostinger.';
-      }
+      const friendlyMsg = getFriendlyErrorMessage(err, database, host);
 
-      return res.status(500).json({
+      // Return 200 with success: false so intermediate proxies never transform to 502/504 HTML
+      return res.json({
         success: false,
-        message: `فشل الاتصال: ${errorHelp}`,
-        code: err.code,
+        message: friendlyMsg,
+        code: err.code || 'CONNECTION_ERROR',
       });
     }
   });
 
   // --- API: Auto-create tables on MySQL DB ---
   app.post('/api/db/sync-tables', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     const { host, port, database, user, password, ssl, tablePrefix = 'cbq_' } = req.body;
 
+    if (!host || !database || !user) {
+      return res.json({
+        success: false,
+        message: 'يرجى إدخال بيانات السيرفر واسم قاعدة البيانات أولاً.',
+      });
+    }
+
     try {
-      const connection = await mysql.createConnection({
+      const connection = await connectMysqlWithTimeout({
         host,
         port: port ? parseInt(port) : 3306,
         user,
         password: password || '',
         database,
-        connectTimeout: 7000,
+        connectTimeout: 3000,
         ssl: ssl ? { rejectUnauthorized: false } : undefined,
         multipleStatements: true,
-      });
+      }, 4000);
 
       const ddl = `
         CREATE TABLE IF NOT EXISTS \`${tablePrefix}users\` (
@@ -155,12 +191,22 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('Error creating tables:', err);
-      return res.status(500).json({
+      const friendlyMsg = getFriendlyErrorMessage(err, database, host);
+      return res.json({
         success: false,
-        message: `تعذر إنشاء الجداول: ${err.message}`,
+        message: `تعذر إنشاء الجداول: ${friendlyMsg}`,
       });
     }
   });
+
+  // Global API error handler returning JSON
+  app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    res.status(500).json({
+      success: false,
+      message: err?.message || 'حدث خطأ في معالجة الطلب.',
+    });
+  });
+
 
   // --- Vite dev server / production static files ---
   const isProd = process.env.NODE_ENV === 'production';

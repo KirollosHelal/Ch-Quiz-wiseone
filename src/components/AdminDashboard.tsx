@@ -259,6 +259,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Helper to safely parse API responses even if proxy/server returns HTML
+  const parseSafeApiResponse = async (res: Response, fallbackMsg: string) => {
+    try {
+      const text = await res.text();
+      if (!text || text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+        return {
+          success: false,
+          message: 'تعذر الاتصال بسيرفر Hostinger (جدار الحماية في Hostinger يمنع الاتصال المباشر بقواعد البيانات من خارج السيرفر). ننصحك باستخدام الطريقة الأسرع والأسهل 100%: اضغط على زر «تنزيل ملف bible_quiz.sql» في الأسفل واستورده داخل phpMyAdmin بضغطة زر واحدة!',
+        };
+      }
+      return JSON.parse(text);
+    } catch {
+      return {
+        success: false,
+        message: fallbackMsg,
+      };
+    }
+  };
+
   // Test Hostinger MySQL DB connection via backend
   const handleTestDatabaseConnection = async () => {
     setIsTestingDb(true);
@@ -272,10 +291,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dbConfig),
       });
-      const data = await res.json();
+      const data = await parseSafeApiResponse(
+        res,
+        'تعذر الاتصال بسيرفر Hostinger. يرجى التأكد من البيانات أو استخدام استيراد ملف SQL في phpMyAdmin.'
+      );
       setDbTestResult({
-        success: data.success,
-        message: data.message,
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم الاتصال بنجاح!' : 'فشل الاتصال.'),
       });
       if (data.success) {
         setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
@@ -284,7 +306,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err: any) {
       setDbTestResult({
         success: false,
-        message: `تعذر الاتصال بالخادم: ${err.message || 'خطأ غير متوقع'}`,
+        message: `تعذر الاتصال بسيرفر Hostinger: ${err.message || 'تأكد من إتاحة الاتصال الخارجي أو استورد ملف SQL'}.`,
       });
     } finally {
       setIsTestingDb(false);
@@ -302,15 +324,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dbConfig),
       });
-      const data = await res.json();
+      const data = await parseSafeApiResponse(
+        res,
+        'تعذر إنشاء الجداول في السيرفر. يمكنك تنزيل ملف SQL واستيراده في phpMyAdmin مباشرة.'
+      );
       setSyncResult({
-        success: data.success,
-        message: data.message,
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم إنشاء الجداول بنجاح!' : 'تعذر إنشاء الجداول.'),
       });
     } catch (err: any) {
       setSyncResult({
         success: false,
-        message: `تعذر تنفيذ سكربت الجداول: ${err.message}`,
+        message: `تعذر تنفيذ سكربت الجداول: ${err.message || 'استخدم ملف SQL المرفق للاستيراد في phpMyAdmin'}`,
       });
     } finally {
       setIsSyncingTables(false);
@@ -1142,7 +1167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-stone-700 mb-1">
                   عنوان السيرفر (MySQL Host):
                 </label>
@@ -1153,19 +1178,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   placeholder="مثال: localhost أو srv123.main-hosting.eu"
                   className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  المنفذ (Port):
-                </label>
-                <input
-                  type="number"
-                  value={dbConfig.port}
-                  onChange={(e) => setDbConfig({ ...dbConfig, port: parseInt(e.target.value) || 3306 })}
-                  placeholder="3306"
-                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  * يتم استخدام المنفذ الافتراضي (Port 3306) تلقائياً دون الحاجة لتحديده.
+                </p>
               </div>
 
               <div>
