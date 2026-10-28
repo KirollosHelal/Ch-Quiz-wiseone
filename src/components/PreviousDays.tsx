@@ -4,7 +4,7 @@ import { DailyQuiz, User } from '../types';
 
 interface PreviousDaysProps {
   quizzes: DailyQuiz[];
-  currentUser: User;
+  currentUser: User | null;
   onSelectDayForReading: (quiz: DailyQuiz) => void;
   onSelectDayForQuiz: (quiz: DailyQuiz) => void;
   onSetMainDay?: (quizId: string) => void;
@@ -31,13 +31,13 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white rounded-3xl p-5 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50 mb-2">
             <Calendar className="w-3.5 h-3.5" />
             <span>أرشيف مسابقات الأيام السابقة</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-amber-50">
+          <h1 className="text-xl sm:text-3xl font-extrabold text-amber-50">
             اختر أي يوم سابق للقراءة وحل المسابقة
           </h1>
           <p className="text-stone-300 text-xs sm:text-sm mt-1">
@@ -61,7 +61,7 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
       {/* Days Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map((quiz) => {
-          const submission = currentUser.submissions.find(s => s.quizId === quiz.id);
+          const submission = currentUser?.submissions?.find(s => s.quizId === quiz.id);
           const isSolved = !!submission;
           const isMain = quiz.isMainToday;
 
@@ -152,7 +152,7 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
                 </div>
 
                 {/* Admin Quick Action: Set as Main Today */}
-                {currentUser.role === 'admin' && !isMain && onSetMainDay && (
+                {currentUser?.role === 'admin' && !isMain && onSetMainDay && (
                   <button
                     onClick={() => onSetMainDay(quiz.id)}
                     className="w-full text-center text-[11px] text-amber-800 hover:text-amber-950 font-bold underline py-1 cursor-pointer"

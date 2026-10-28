@@ -4,7 +4,7 @@ import { User, AgeGroup } from '../types';
 
 interface LeaderboardProps {
   users: User[];
-  currentUser: User;
+  currentUser: User | null;
   onOpenAdjustPoints: (user: User) => void;
   onOpenRegisterModal: () => void;
 }
@@ -44,16 +44,18 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     }
   };
 
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-amber-900 via-stone-900 to-amber-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-amber-900 via-stone-900 to-amber-950 text-white rounded-3xl p-5 sm:p-8 shadow-xl border border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6">
         <div className="space-y-2 text-center sm:text-right">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50">
             <Trophy className="w-3.5 h-3.5" />
             <span>لوحة الشرف ومراكز الأوائل</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-amber-50">
+          <h1 className="text-xl sm:text-3xl font-extrabold text-amber-50">
             فرسان كلمة الله ومسابقة الكتاب المقدس
           </h1>
           <p className="text-stone-300 text-xs sm:text-sm">
@@ -62,10 +64,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
         </div>
 
         {/* Action Button for Admin / Registration */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={onOpenRegisterModal}
-            className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl font-bold text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
           >
             <UserPlus className="w-4 h-4" />
             <span>تسجيل مخدوم / عضو جديد</span>
@@ -90,10 +92,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               <div className="text-2xl font-extrabold text-stone-800 font-mono">
                 {top3[1].totalPoints} <span className="text-xs font-sans text-stone-500">نقطة</span>
               </div>
-              {currentUser.role === 'admin' && (
+              {isAdmin && (
                 <button
                   onClick={() => onOpenAdjustPoints(top3[1])}
-                  className="mt-3 text-xs text-amber-700 hover:text-amber-800 font-bold underline"
+                  className="mt-3 text-xs text-amber-700 hover:text-amber-800 font-bold underline cursor-pointer"
                 >
                   تعديل النقاط
                 </button>
@@ -122,10 +124,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 <CheckCircle2 className="w-4 h-4" />
                 <span>حل {top3[0].quizzesSolved} أصحاح</span>
               </div>
-              {currentUser.role === 'admin' && (
+              {isAdmin && (
                 <button
                   onClick={() => onOpenAdjustPoints(top3[0])}
-                  className="mt-3 text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1 rounded-lg font-bold"
+                  className="mt-3 text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1 rounded-lg font-bold cursor-pointer"
                 >
                   تعديل النقاط
                 </button>
@@ -147,10 +149,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               <div className="text-2xl font-extrabold text-stone-800 font-mono">
                 {top3[2].totalPoints} <span className="text-xs font-sans text-stone-500">نقطة</span>
               </div>
-              {currentUser.role === 'admin' && (
+              {isAdmin && (
                 <button
                   onClick={() => onOpenAdjustPoints(top3[2])}
-                  className="mt-3 text-xs text-amber-700 hover:text-amber-800 font-bold underline"
+                  className="mt-3 text-xs text-amber-700 hover:text-amber-800 font-bold underline cursor-pointer"
                 >
                   تعديل النقاط
                 </button>
@@ -206,17 +208,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
 
         <div className="divide-y divide-stone-100">
           {filteredUsers.map((user, index) => {
-            const isMe = user.id === currentUser.id;
+            const isMe = currentUser ? user.id === currentUser.id : false;
             return (
               <div
                 key={user.id}
-                className={`p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors ${
+                className={`p-3.5 sm:p-5 flex items-center justify-between gap-3 sm:gap-4 transition-colors ${
                   isMe ? 'bg-amber-50/70 border-r-4 border-amber-600' : 'hover:bg-stone-50'
                 }`}
               >
                 {/* Rank & User Info */}
-                <div className="flex items-center gap-4">
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 ${
                     index === 0
                       ? 'bg-amber-400 text-stone-950'
                       : index === 1
@@ -228,49 +230,49 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                     {index + 1}
                   </span>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-stone-900 text-base">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <h4 className="font-bold text-stone-900 text-sm sm:text-base truncate">
                         {user.fullName}
                       </h4>
                       {isMe && (
-                        <span className="bg-amber-200 text-amber-900 text-[10px] px-2 py-0.5 rounded font-bold">
+                        <span className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0.2 rounded font-bold">
                           أنت
                         </span>
                       )}
                       {user.registeredBy === 'admin' && (
-                        <span className="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded" title="سجله الخادم">
+                        <span className="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded hidden xs:inline" title="سجله الخادم">
                           سجله الخادم
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-stone-500 mt-0.5">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-stone-500 mt-0.5 flex-wrap">
                       <span>{getAgeGroupLabel(user.ageGroup)}</span>
                       <span>·</span>
                       <span className="flex items-center gap-1 text-amber-700 font-medium">
-                        <Flame className="w-3.5 h-3.5 fill-current" />
-                        <span>{user.currentStreak} أيام متتالية</span>
+                        <Flame className="w-3 h-3 fill-current shrink-0" />
+                        <span>{user.currentStreak} يوم</span>
                       </span>
-                      <span>·</span>
-                      <span>{user.quizzesSolved} أصحاح مكتمل</span>
+                      <span className="hidden sm:inline">·</span>
+                      <span className="hidden sm:inline">{user.quizzesSolved} أصحاح</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Points & Admin Action */}
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <div className="text-left font-mono">
-                    <span className="text-xl sm:text-2xl font-extrabold text-amber-900">
+                    <span className="text-lg sm:text-2xl font-black text-amber-900">
                       {user.totalPoints}
                     </span>
-                    <span className="text-xs font-sans text-stone-500 mr-1 block sm:inline">نقطة</span>
+                    <span className="text-[11px] sm:text-xs font-sans text-stone-500 mr-1 block sm:inline">نقطة</span>
                   </div>
 
-                  {currentUser.role === 'admin' && (
+                  {isAdmin && (
                     <button
                       onClick={() => onOpenAdjustPoints(user)}
-                      className="px-3 py-1.5 bg-stone-100 hover:bg-amber-100 text-stone-800 hover:text-amber-950 text-xs font-bold rounded-lg border border-stone-200 transition-colors cursor-pointer flex items-center gap-1"
+                      className="px-2.5 py-1.5 sm:px-3 bg-stone-100 hover:bg-amber-100 text-stone-800 hover:text-amber-950 text-xs font-bold rounded-lg border border-stone-200 transition-colors cursor-pointer flex items-center gap-1"
                       title="إضافة أو تعديل نقاط المتسابق"
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />

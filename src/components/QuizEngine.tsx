@@ -6,10 +6,11 @@ import { SeniorSettings, StorageService } from '../services/storage';
 
 interface QuizEngineProps {
   quiz: DailyQuiz;
-  currentUser: User;
+  currentUser: User | null;
   settings: SeniorSettings;
   onBackToReading: () => void;
   onGoToLeaderboard: () => void;
+  onRequireAuth: () => void;
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({
@@ -18,9 +19,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   settings,
   onBackToReading,
   onGoToLeaderboard,
+  onRequireAuth,
 }) => {
   // Existing submission check
-  const existingSub = currentUser.submissions.find(s => s.quizId === quiz.id);
+  const existingSub = currentUser?.submissions?.find(s => s.quizId === quiz.id);
 
   // User answers state: questionId -> answer value
   const [answers, setAnswers] = useState<Record<string, any>>(() => {
@@ -114,6 +116,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   };
 
   const handleSubmit = () => {
+    if (!currentUser) {
+      onRequireAuth();
+      return;
+    }
+
     const result = calculateResults();
     setSubmissionResult(result);
     setIsSubmitted(true);
@@ -166,7 +173,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
           </div>
 
           <p className="text-xs text-stone-500">
-            تمت إضافة النقاط إلى رصيدك باسم «{currentUser.fullName}» في لوحة الشرف.
+            {currentUser ? (
+              <>تمت إضافة النقاط إلى رصيدك باسم «{currentUser.fullName}» في لوحة الشرف.</>
+            ) : (
+              <>سجل دخولك لتثبيت نقاطك في لوحة الشرف.</>
+            )}
           </p>
         </div>
 
@@ -308,7 +319,30 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
   // Active Question View
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-stone-200 max-w-4xl mx-auto space-y-8">
+    <div className="bg-white rounded-3xl p-5 sm:p-10 shadow-lg border border-stone-200 max-w-4xl mx-auto space-y-6 sm:space-y-8">
+      {/* Guest Notice Banner if not logged in */}
+      {!currentUser && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+              ☦
+            </div>
+            <div>
+              <p className="font-extrabold text-amber-950 text-sm">تنبيه: أنت تتصفح المسابقة الآن كزائر</p>
+              <p className="text-amber-800 text-xs">
+                يمكنك تجربة الإجابة، ولكن لحفظ درجاتك والمنافسة في لوحة الشرف يجب تسجيل الدخول أو إنشاء حساب.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onRequireAuth}
+            className="w-full sm:w-auto px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm whitespace-nowrap transition-all"
+          >
+            تسجيل الدخول / إنشاء حساب ➔
+          </button>
+        </div>
+      )}
+
       {/* Header with progress */}
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-stone-200">
         <div>

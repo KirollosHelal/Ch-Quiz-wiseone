@@ -4,7 +4,7 @@ import { User, AgeGroup } from '../types';
 import { StorageService } from '../services/storage';
 
 interface AdminRegisterUserModalProps {
-  currentUser: User;
+  currentUser: User | null;
   onClose: () => void;
   onUserRegistered: (newUser: User) => void;
 }
@@ -14,7 +14,7 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
   onClose,
   onUserRegistered,
 }) => {
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const [registerMode, setRegisterMode] = useState<'admin_proxy' | 'self'>(
     isAdmin ? 'admin_proxy' : 'self'
@@ -53,7 +53,7 @@ export const AdminRegisterUserModal: React.FC<AdminRegisterUserModalProps> = ({
         newUser.id,
         initialPoints,
         'نقاط ترحيبية وتشجيعية عند التسجيل',
-        currentUser.fullName || 'الخادم المشرف'
+        currentUser?.fullName || 'الخادم المشرف'
       );
     }
 

@@ -198,27 +198,27 @@ export const StorageService = {
     return { success: true, user };
   },
 
-  getCurrentUser(): User {
+  getCurrentUser(): User | null {
     const users = this.getUsers();
     const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     if (currentId) {
       const found = users.find(u => u.id === currentId);
       if (found) return found;
     }
-    // Default to Kirillos Admin or first user
-    const kirillos = users.find(u => u.email === 'kirilloshelal@gmail.com');
-    const defaultUser = kirillos || users[0];
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, defaultUser.id);
-    return defaultUser;
+    // Visitor / Guest mode by default — DO NOT automatically sign in as admin!
+    return null;
   },
 
-  setCurrentUser(userId: string): void {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, userId);
+  setCurrentUser(userId: string | null): void {
+    if (userId) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, userId);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    }
     dispatchChange();
   },
 
   logout(): void {
-    // Log out: switch to a guest or prompt login
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     dispatchChange();
   },

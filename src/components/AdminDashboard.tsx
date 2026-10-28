@@ -399,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-stone-200 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-stone-200 pb-2 overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
         {[
           { id: 'quizzes', label: '📅 أيام المسابقة والأرشيف', count: quizzes.length },
           { id: 'users', label: '👥 المتسابقون والمخدومون', count: users.length },
@@ -410,7 +410,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 sm:gap-2 shrink-0 ${
               activeTab === tab.id
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
@@ -418,7 +418,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <span>{tab.label}</span>
             {tab.count !== undefined && (
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
+              <span className={`px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[11px] sm:text-xs ${
                 activeTab === tab.id ? 'bg-amber-800 text-amber-100' : 'bg-stone-200 text-stone-700'
               }`}>
                 {tab.count}

@@ -22,7 +22,7 @@ import { Calendar, Star, Sparkles, CheckCircle2 } from 'lucide-react';
 export default function App() {
   const [quizzes, setQuizzes] = useState<DailyQuiz[]>(() => StorageService.getQuizzes());
   const [users, setUsers] = useState<User[]>(() => StorageService.getUsers());
-  const [currentUser, setCurrentUser] = useState<User>(() => StorageService.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(() => StorageService.getCurrentUser());
   const [selectedQuiz, setSelectedQuiz] = useState<DailyQuiz>(() => StorageService.getMainTodayQuiz());
   const [currentTab, setCurrentTab] = useState<NavTab>('today');
   const [seniorSettings, setSeniorSettings] = useState<SeniorSettings>(() => StorageService.getSeniorSettings());
@@ -82,7 +82,7 @@ export default function App() {
   };
 
   // Check if current user has solved the active quiz
-  const currentSubmission = currentUser.submissions.find(s => s.quizId === selectedQuiz?.id);
+  const currentSubmission = currentUser?.submissions?.find(s => s.quizId === selectedQuiz?.id);
   const isCurrentQuizSolved = !!currentSubmission;
 
   const mainTodayQuiz = StorageService.getMainTodayQuiz();
@@ -101,9 +101,11 @@ export default function App() {
       <Navbar
         currentTab={currentTab}
         onSelectTab={(tab) => {
-          if (tab === 'admin' && currentUser.role !== 'admin') {
-            setCurrentTab('today');
-            return;
+          if (tab === 'admin') {
+            if (currentUser?.role !== 'admin') {
+              setIsAuthModalOpen(true);
+              return;
+            }
           }
           if (tab === 'today') {
             setSelectedQuiz(mainTodayQuiz);
@@ -111,11 +113,17 @@ export default function App() {
           setCurrentTab(tab);
         }}
         currentUser={currentUser}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenProfile={() => {
+          if (currentUser) {
+            setIsProfileModalOpen(true);
+          } else {
+            setIsAuthModalOpen(true);
+          }
+        }}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={() => {
           StorageService.logout();
-          setIsAuthModalOpen(true);
+          setCurrentUser(null);
         }}
       />
 
@@ -148,14 +156,14 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Main Body Content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* 4. Main Body Content (With safe padding for mobile bottom bar) */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-10 pb-28 md:pb-12">
         {/* TAB 1: MAIN TODAY (اليوم الحالي) */}
         {currentTab === 'today' && selectedQuiz && (
           <div className="space-y-6">
-            <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg shrink-0">
+            <div className="bg-amber-50 border-2 border-amber-300 p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
                   ★
                 </div>
                 <div>
@@ -169,17 +177,29 @@ export default function App() {
               </div>
 
               <button
-                onClick={() => setCurrentTab('quiz')}
-                className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  if (!currentUser) {
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setCurrentTab('quiz');
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap text-center"
               >
-                {isCurrentQuizSolved ? 'مراجعة حل الأسئلة ✓' : 'الانتقال لحل مسابقة اليوم ➔'}
+                {isCurrentQuizSolved ? 'مراجعة حل الأسئلة ✓' : (currentUser ? 'الانتقال لحل مسابقة اليوم ➔' : 'تسجيل الدخول وبدء المسابقة ➔')}
               </button>
             </div>
 
             <ChapterReader
               quiz={selectedQuiz}
               settings={seniorSettings}
-              onGoToQuiz={() => setCurrentTab('quiz')}
+              onGoToQuiz={() => {
+                if (!currentUser) {
+                  setIsAuthModalOpen(true);
+                } else {
+                  setCurrentTab('quiz');
+                }
+              }}
               isSolved={isCurrentQuizSolved}
               score={currentSubmission?.score}
             />
@@ -197,7 +217,11 @@ export default function App() {
             }}
             onSelectDayForQuiz={(quiz) => {
               setSelectedQuiz(quiz);
-              setCurrentTab('quiz');
+              if (!currentUser) {
+                setIsAuthModalOpen(true);
+              } else {
+                setCurrentTab('quiz');
+              }
             }}
             onSetMainDay={handleSetMainDay}
           />
@@ -206,12 +230,13 @@ export default function App() {
         {/* TAB 3: QUIZ ENGINE (حل الأسئلة) */}
         {currentTab === 'quiz' && selectedQuiz && (
           <QuizEngine
-            key={selectedQuiz.id + currentUser.id}
+            key={selectedQuiz.id + (currentUser?.id || 'guest')}
             quiz={selectedQuiz}
             currentUser={currentUser}
             settings={seniorSettings}
             onBackToReading={() => setCurrentTab('today')}
             onGoToLeaderboard={() => setCurrentTab('leaderboard')}
+            onRequireAuth={() => setIsAuthModalOpen(true)}
           />
         )}
 
@@ -221,12 +246,18 @@ export default function App() {
             users={users}
             currentUser={currentUser}
             onOpenAdjustPoints={(u) => setAdjustPointsUser(u)}
-            onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
+            onOpenRegisterModal={() => {
+              if (currentUser?.role === 'admin') {
+                setIsRegisterModalOpen(true);
+              } else {
+                setIsAuthModalOpen(true);
+              }
+            }}
           />
         )}
 
         {/* TAB 5: ADMIN DASHBOARD (لوحة الخادم ومسؤول الموقع - للمشرف فقط) */}
-        {currentTab === 'admin' && currentUser.role === 'admin' && (
+        {currentTab === 'admin' && currentUser?.role === 'admin' && (
           <AdminDashboard
             quizzes={quizzes}
             users={users}
@@ -249,10 +280,13 @@ export default function App() {
         onAuthenticated={(authenticatedUser) => {
           setCurrentUser(authenticatedUser);
           setUsers(StorageService.getUsers());
+          if (currentTab === 'today') {
+            setCurrentTab('quiz');
+          }
         }}
       />
 
-      {adjustPointsUser && (
+      {adjustPointsUser && currentUser && (
         <AdminAdjustPointsModal
           user={adjustPointsUser}
           adminUser={currentUser}
@@ -274,7 +308,7 @@ export default function App() {
         />
       )}
 
-      {isProfileModalOpen && (
+      {isProfileModalOpen && currentUser && (
         <UserProfileModal
           user={currentUser}
           quizzes={quizzes}

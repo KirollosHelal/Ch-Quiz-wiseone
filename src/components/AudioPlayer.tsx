@@ -119,7 +119,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       />
 
       {/* Player Header */}
-      <div className="flex items-center justify-between gap-4 mb-4 pb-3 border-b border-stone-800">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-stone-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
             <Headphones className="w-5 h-5" />
@@ -135,7 +135,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
 
         {/* Speed Controls for Seniors */}
-        <div className="flex items-center gap-1.5 bg-stone-800/80 p-1 rounded-lg border border-stone-700/60 text-xs">
+        <div className="flex items-center gap-1 sm:gap-1.5 bg-stone-800/80 p-1 rounded-lg border border-stone-700/60 text-xs self-stretch sm:self-auto justify-center">
           <Gauge className="w-3.5 h-3.5 text-amber-400 mx-1 hidden sm:inline" />
           <span className="text-[11px] text-stone-400 ml-1 hidden sm:inline">السرعة:</span>
           {[
@@ -179,31 +179,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       </div>
 
       {/* Main Controls Row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
         {/* Rewind 10s */}
         <button
           onClick={() => skipSeconds(-10)}
-          className="flex items-center gap-1 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl transition-colors cursor-pointer text-xs font-medium"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl transition-colors cursor-pointer text-xs font-medium"
           title="رجوع 10 ثوانٍ"
         >
-          <RotateCcw className="w-4 h-4 text-amber-400" />
-          <span>-10 ثوانٍ</span>
+          <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="hidden xs:inline">-10 ثوانٍ</span>
+          <span className="xs:hidden">-10ث</span>
         </button>
 
         {/* Big Prominent Play/Pause Button for elderly fingers */}
         <button
           onClick={togglePlay}
-          className="flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 rounded-2xl font-bold text-base shadow-md transition-all transform active:scale-95 cursor-pointer"
+          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 rounded-2xl font-black text-sm sm:text-base shadow-md transition-all transform active:scale-95 cursor-pointer min-w-[130px]"
           aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل الصوتي'}
         >
           {isPlaying ? (
             <>
-              <Pause className="w-6 h-6 fill-current" />
+              <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current shrink-0" />
               <span>إيقاف مؤقت</span>
             </>
           ) : (
             <>
-              <Play className="w-6 h-6 fill-current" />
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current shrink-0" />
               <span>تشغيل الصوت</span>
             </>
           )}
@@ -212,20 +213,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {/* Forward 10s */}
         <button
           onClick={() => skipSeconds(10)}
-          className="flex items-center gap-1 px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl transition-colors cursor-pointer text-xs font-medium"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl transition-colors cursor-pointer text-xs font-medium"
           title="تقديم 10 ثوانٍ"
         >
-          <span>+10 ثوانٍ</span>
-          <RotateCw className="w-4 h-4 text-amber-400" />
+          <span className="hidden xs:inline">+10 ثوانٍ</span>
+          <span className="xs:hidden">+10ث</span>
+          <RotateCw className="w-4 h-4 text-amber-400 shrink-0" />
         </button>
 
         {/* Mute / Unmute */}
         <button
           onClick={toggleMute}
-          className="p-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl transition-colors cursor-pointer"
+          className="p-2 sm:p-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl transition-colors cursor-pointer"
           title={isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
+          aria-label={isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
         >
-          {isMuted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
+          {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />}
         </button>
       </div>
 
