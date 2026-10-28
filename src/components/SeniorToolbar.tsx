@@ -79,18 +79,11 @@ export const SeniorToolbar: React.FC<SeniorToolbarProps> = ({
             <span className="font-mono text-amber-300 font-bold">({currentUser.totalPoints}ن)</span>
           </div>
 
-          {currentUser.role === 'admin' ? (
+          {currentUser.role === 'admin' && (
             <span className="bg-amber-400 text-amber-950 text-[10px] px-2 py-0.5 rounded font-black whitespace-nowrap flex items-center gap-1">
               <Shield className="w-3 h-3" />
-              كيرلس هلال (المشرف العام)
+              المشرف العام
             </span>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="bg-amber-400/90 hover:bg-amber-400 text-stone-950 text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap cursor-pointer transition-colors"
-            >
-              دخول كمسؤول
-            </button>
           )}
 
           <button

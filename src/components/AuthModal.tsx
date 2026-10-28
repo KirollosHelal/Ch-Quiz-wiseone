@@ -19,8 +19,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   
   // Sign In fields
-  const [identifier, setIdentifier] = useState('kirilloshelal@gmail.com');
-  const [password, setPassword] = useState('123456789');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -85,18 +85,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
       setSuccessNotice(null);
     }, 900);
-  };
-
-  const fillAdmin = () => {
-    setIdentifier('kirilloshelal@gmail.com');
-    setPassword('123456789');
-    setAuthError(null);
-  };
-
-  const fillSenior = () => {
-    setIdentifier('01001234567');
-    setPassword('123');
-    setAuthError(null);
   };
 
   return (
@@ -177,7 +165,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="kirilloshelal@gmail.com أو رقم الموبايل"
+                  placeholder="البريد الإلكتروني أو رقم الموبايل"
                   className="w-full pl-3 pr-10 py-3 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   required
                 />
@@ -215,29 +203,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               تسجيل الدخول الآن ➔
             </button>
-
-            {/* Quick Demo Logins for conveniency */}
-            <div className="pt-4 border-t border-stone-200 space-y-2">
-              <span className="text-[11px] text-stone-500 block text-center font-medium">
-                اختصارات سريعة للدخول التجريبي:
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={fillAdmin}
-                  className="flex-1 p-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-900 transition-colors cursor-pointer text-center"
-                >
-                  👑 أدمن: كيرلس هلال
-                </button>
-                <button
-                  type="button"
-                  onClick={fillSenior}
-                  className="flex-1 p-2 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl text-[11px] font-bold text-stone-800 transition-colors cursor-pointer text-center"
-                >
-                  👴 عم سمير (اجتماع الحكماء)
-                </button>
-              </div>
-            </div>
           </form>
         ) : (
           /* MODE 2: SIGN UP */

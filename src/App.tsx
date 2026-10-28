@@ -101,6 +101,10 @@ export default function App() {
       <Navbar
         currentTab={currentTab}
         onSelectTab={(tab) => {
+          if (tab === 'admin' && currentUser.role !== 'admin') {
+            setCurrentTab('today');
+            return;
+          }
           if (tab === 'today') {
             setSelectedQuiz(mainTodayQuiz);
           }
@@ -221,8 +225,8 @@ export default function App() {
           />
         )}
 
-        {/* TAB 5: ADMIN DASHBOARD (لوحة الخادم ومسؤول الموقع) */}
-        {currentTab === 'admin' && (
+        {/* TAB 5: ADMIN DASHBOARD (لوحة الخادم ومسؤول الموقع - للمشرف فقط) */}
+        {currentTab === 'admin' && currentUser.role === 'admin' && (
           <AdminDashboard
             quizzes={quizzes}
             users={users}
@@ -295,7 +299,7 @@ export default function App() {
           </div>
 
           <div className="text-stone-500">
-            المشرف العام: كيرلس هلال (kirilloshelal@gmail.com)
+            المشرف العام: كيرلس هلال
           </div>
         </div>
       </footer>

@@ -76,14 +76,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             لوحة الشرف
           </button>
 
-          <button
-            onClick={() => onSelectTab('admin')}
-            className={`hover:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer py-1 ${
-              currentTab === 'admin' ? 'text-amber-400 font-bold border-b-2 border-amber-400' : ''
-            }`}
-          >
-            لوحة الخادم
-          </button>
+          {currentUser.role === 'admin' && (
+            <button
+              onClick={() => onSelectTab('admin')}
+              className={`hover:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer py-1 ${
+                currentTab === 'admin' ? 'text-amber-400 font-bold border-b-2 border-amber-400' : ''
+              }`}
+            >
+              لوحة الخادم
+            </button>
+          )}
         </nav>
 
         {/* Zone 3: 1 Primary Action (User profile / Sign in button) */}
@@ -136,12 +138,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           المتصدرون
         </button>
-        <button
-          onClick={() => onSelectTab('admin')}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap ${currentTab === 'admin' ? 'bg-amber-500 text-stone-950 font-bold' : 'text-stone-300'}`}
-        >
-          الخادم
-        </button>
+        {currentUser.role === 'admin' && (
+          <button
+            onClick={() => onSelectTab('admin')}
+            className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap ${currentTab === 'admin' ? 'bg-amber-500 text-stone-950 font-bold' : 'text-stone-300'}`}
+          >
+            الخادم
+          </button>
+        )}
       </div>
     </header>
   );
