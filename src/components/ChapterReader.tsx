@@ -30,9 +30,9 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
   const testamentLabel = quiz.testament === 'new' ? 'العهد الجديد' : 'العهد القديم';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Chapter Banner & Meta with generated Coptic Bible illustration */}
-      <div className="relative text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-amber-900/60 overflow-hidden min-h-[220px] flex flex-col justify-end">
+      <div className="relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-xl border border-amber-900/60 overflow-hidden min-h-[220px] flex flex-col justify-end w-full">
         {/* Background photo with high-fidelity scrim */}
         <img
           src="/src/assets/images/coptic_bible_header_1792934497575.jpg"
@@ -44,27 +44,27 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
 
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2 flex-wrap">
-            <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-0.5 rounded-lg text-xs">
+            <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-0.5 rounded-lg text-xs shadow-xs">
               {quiz.dayLabel || `اليوم ${quiz.dayNumber}`}
             </span>
             <span>·</span>
             <span className="font-mono text-amber-200">{quiz.date}</span>
             <span>·</span>
-            <span>{testamentLabel}</span>
+            <span className="bg-stone-900/80 px-2 py-0.5 rounded-md text-amber-200 text-[11px]">{testamentLabel}</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-extrabold text-amber-50 mb-3 tracking-tight">
             {quiz.bookName} - الأصحاح {quiz.chapterNumber}
           </h1>
 
-          <p className="text-amber-200/90 text-sm sm:text-base font-medium mb-4">
+          <p className="text-amber-100/95 text-sm sm:text-base font-medium mb-4 leading-relaxed">
             {quiz.title}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               onClick={onGoToQuiz}
-              className="flex items-center gap-2 px-6 py-3 bg-amber-400 hover:bg-amber-300 text-stone-950 rounded-xl font-bold text-sm sm:text-base shadow-md transition-all cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-amber-400 hover:bg-amber-300 text-stone-950 rounded-xl font-bold text-sm sm:text-base shadow-md transition-all cursor-pointer"
             >
               {isSolved ? (
                 <>
@@ -73,7 +73,7 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
                 </>
               ) : (
                 <>
-                  <BookOpen className="w-5 h-5" />
+                  <BookOpen className="w-5 h-5 text-stone-950" />
                   <span>ابدأ حل مسابقة الأصحاح ({quiz.totalPoints} نقطة)</span>
                 </>
               )}
@@ -90,21 +90,21 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
         autoPlay={settings.autoPlayAudio}
       />
 
-      {/* Key Verse Box */}
+      {/* Key Verse Box with Rich Gold & Dark Contrast */}
       {quiz.keyVerse && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-amber-900 font-bold text-sm mb-2">
-            <Bookmark className="w-4 h-4 text-amber-700" />
+        <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-xs w-full">
+          <div className="flex items-center gap-2 text-amber-900 font-extrabold text-xs sm:text-sm mb-2">
+            <Bookmark className="w-4 h-4 text-amber-700 shrink-0" />
             <span>آية اليوم للحفظ والبركة:</span>
           </div>
-          <p className="text-stone-900 font-scripture text-xl sm:text-2xl font-bold leading-relaxed text-amber-950">
+          <p className="text-stone-950 font-scripture text-lg sm:text-2xl font-bold leading-relaxed text-amber-950">
             «{quiz.keyVerse}»
           </p>
         </div>
       )}
 
       {/* Scripture Reading Section */}
-      <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-md border border-stone-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-10 shadow-md border border-stone-200 w-full">
         <div className="flex items-center justify-between pb-4 mb-6 border-b border-stone-200">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">

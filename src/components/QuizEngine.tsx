@@ -319,7 +319,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
   // Active Question View
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-10 shadow-lg border border-stone-200 max-w-4xl mx-auto space-y-6 sm:space-y-8">
+    <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-10 shadow-lg border border-stone-200 space-y-5 sm:space-y-8 overflow-hidden">
       {/* Guest Notice Banner if not logged in */}
       {!currentUser && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm shadow-xs animate-in fade-in">

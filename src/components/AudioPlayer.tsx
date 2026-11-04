@@ -100,7 +100,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   return (
-    <div className="bg-stone-900 text-stone-100 rounded-2xl p-5 shadow-lg border border-amber-900/40 my-4 relative overflow-hidden">
+    <div className="w-full max-w-full bg-stone-900 text-stone-100 rounded-2xl p-4 sm:p-5 shadow-lg border border-amber-900/40 my-4 relative overflow-hidden">
       {/* Background soft ambient glow */}
       <div className="absolute top-0 right-0 w-64 h-32 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 

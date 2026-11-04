@@ -129,17 +129,17 @@ export default function App() {
 
       {/* 3. Day Indicator Banner when in 'today' or 'quiz' */}
       {(currentTab === 'today' || currentTab === 'quiz') && selectedQuiz && (
-        <div className="bg-amber-900/10 border-b border-amber-900/15 px-4 py-2.5">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap text-xs">
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-700 text-amber-50 font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 fill-current text-amber-300" />
+        <div className="w-full bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 border-b border-amber-500/30 px-3 sm:px-6 py-2.5 sm:py-3 shadow-inner">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm text-xs">
+                <Star className="w-3.5 h-3.5 fill-current text-amber-900" />
                 <span>{selectedQuiz.dayLabel || `مسابقة اليوم ${selectedQuiz.dayNumber}`}</span>
               </span>
-              <span className="font-bold text-stone-800">
+              <span className="font-extrabold text-amber-100 text-xs sm:text-sm">
                 {selectedQuiz.bookName} - الأصحاح {selectedQuiz.chapterNumber}
               </span>
-              <span className="text-stone-500 font-mono hidden sm:inline">
+              <span className="text-amber-300/80 font-mono text-[11px] sm:text-xs">
                 ({selectedQuiz.date})
               </span>
             </div>
@@ -147,9 +147,10 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentTab('previous')}
-                className="text-amber-900 hover:text-amber-700 font-bold underline cursor-pointer"
+                className="text-amber-400 hover:text-amber-300 font-extrabold underline cursor-pointer text-xs flex items-center gap-1 transition-colors"
               >
-                تصفح الأيام السابقة ➔
+                <span>تصفح الأيام السابقة</span>
+                <span dir="ltr">➔</span>
               </button>
             </div>
           </div>
@@ -157,21 +158,30 @@ export default function App() {
       )}
 
       {/* 4. Main Body Content (With safe padding for mobile bottom bar) */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-10 pb-28 md:pb-12">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-28 md:pb-12 overflow-x-hidden">
         {/* TAB 1: MAIN TODAY (اليوم الحالي) */}
         {currentTab === 'today' && selectedQuiz && (
-          <div className="space-y-6">
-            <div className="bg-amber-50 border-2 border-amber-300 p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+          <div className="space-y-5 sm:space-y-6 w-full">
+            {/* Main Day Header Card with High Contrast, Sharp Readable Typography */}
+            <div className="w-full bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 border-2 border-amber-500/50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl text-white relative overflow-hidden">
+              {/* Subtle decorative background glow */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center gap-3.5 w-full sm:w-auto relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shrink-0 shadow-md ring-2 ring-amber-300/60">
                   ★
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-amber-950 text-sm sm:text-base">
-                    اليوم الرئيسي الحالي: {selectedQuiz.dayLabel || `اليوم ${selectedQuiz.dayNumber}`}
-                  </h3>
-                  <p className="text-xs text-amber-800">
-                    اقرأ أو استمع لأصحاح اليوم ثم اضغط على زر حل الأسئلة لتسجيل نقاطك في لوحة الشرف
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                      اليوم الرئيسي الحصري
+                    </span>
+                    <h3 className="font-black text-white text-base sm:text-lg tracking-tight">
+                      {selectedQuiz.dayLabel || `اليوم ${selectedQuiz.dayNumber}`}: {selectedQuiz.bookName} (الأصحاح {selectedQuiz.chapterNumber})
+                    </h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-stone-300 font-medium leading-relaxed">
+                    اقرأ أو استمع لأصحاح اليوم بوضوح، ثم اضغط على زر حل الأسئلة لتسجيل درجاتك في لوحة الشرف اليومية.
                   </p>
                 </div>
               </div>
@@ -184,7 +194,7 @@ export default function App() {
                     setCurrentTab('quiz');
                   }
                 }}
-                className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap text-center"
+                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl sm:rounded-2xl text-xs sm:text-sm shadow-lg transition-all transform active:scale-95 cursor-pointer whitespace-nowrap text-center relative z-10 shrink-0"
               >
                 {isCurrentQuizSolved ? 'مراجعة حل الأسئلة ✓' : (currentUser ? 'الانتقال لحل مسابقة اليوم ➔' : 'تسجيل الدخول وبدء المسابقة ➔')}
               </button>

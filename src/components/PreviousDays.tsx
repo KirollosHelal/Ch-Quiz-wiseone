@@ -29,9 +29,9 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
   );
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 w-full max-w-5xl mx-auto overflow-hidden">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white rounded-3xl p-5 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
+      <div className="w-full bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50 mb-2">
             <Calendar className="w-3.5 h-3.5" />

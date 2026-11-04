@@ -366,9 +366,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const logs = StorageService.getPointLogs();
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto overflow-hidden">
       {/* Top Banner */}
-      <div className="bg-stone-900 text-stone-100 rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="w-full bg-stone-900 text-stone-100 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl border border-stone-800 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
         <div>
           <span className="text-amber-400 font-bold text-xs flex items-center gap-1.5 mb-2">
             <Sparkles className="w-3.5 h-3.5" />

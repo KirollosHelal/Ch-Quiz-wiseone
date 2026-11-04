@@ -47,9 +47,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-5xl mx-auto overflow-hidden">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-amber-900 via-stone-900 to-amber-950 text-white rounded-3xl p-5 sm:p-8 shadow-xl border border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6">
+      <div className="w-full bg-gradient-to-r from-amber-900 via-stone-900 to-amber-950 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
         <div className="space-y-2 text-center sm:text-right">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50">
             <Trophy className="w-3.5 h-3.5" />
