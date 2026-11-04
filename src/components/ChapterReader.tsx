@@ -31,33 +31,35 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
-      {/* Chapter Banner & Meta with generated Coptic Bible illustration */}
-      <div className="relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-xl border border-amber-900/60 overflow-hidden min-h-[220px] flex flex-col justify-end w-full">
+      {/* Chapter Banner & Meta with guaranteed dark background and crisp, high-contrast readable text */}
+      <div className="relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl border border-amber-900/60 overflow-hidden min-h-[240px] flex flex-col justify-end w-full bg-stone-950">
         {/* Background photo with high-fidelity scrim */}
         <img
           src="/src/assets/images/coptic_bible_header_1792934497575.jpg"
           alt="الكتاب المقدس المفتوح في الكنيسة القبطية"
           referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover object-center -z-10"
+          className="absolute inset-0 w-full h-full object-cover object-center -z-10 opacity-60"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/85 to-stone-900/60 -z-10" />
+        {/* Dual dark scrims ensuring 100% dark background regardless of image rendering or network */}
+        <div className="absolute inset-0 bg-stone-950/85 -z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/90 to-stone-900/80 -z-10" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2 flex-wrap">
-            <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-0.5 rounded-lg text-xs shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2.5 flex-wrap">
+            <span className="bg-amber-400 text-stone-950 font-black px-2.5 py-1 rounded-lg text-xs shadow-md">
               {quiz.dayLabel || `اليوم ${quiz.dayNumber}`}
             </span>
-            <span>·</span>
-            <span className="font-mono text-amber-200">{quiz.date}</span>
-            <span>·</span>
-            <span className="bg-stone-900/80 px-2 py-0.5 rounded-md text-amber-200 text-[11px]">{testamentLabel}</span>
+            <span className="text-stone-400">·</span>
+            <span className="font-mono text-amber-200 font-bold bg-stone-900/80 px-2 py-0.5 rounded-md border border-stone-800">{quiz.date}</span>
+            <span className="text-stone-400">·</span>
+            <span className="bg-stone-900/90 px-2.5 py-0.5 rounded-md text-amber-200 text-xs font-bold border border-amber-500/30">{testamentLabel}</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-amber-50 mb-3 tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-black text-amber-50 mb-3 tracking-tight drop-shadow-md">
             {quiz.bookName} - الأصحاح {quiz.chapterNumber}
           </h1>
 
-          <p className="text-amber-100/95 text-sm sm:text-base font-medium mb-4 leading-relaxed">
+          <p className="text-stone-200 text-sm sm:text-base font-medium mb-5 leading-relaxed drop-shadow-sm max-w-2xl">
             {quiz.title}
           </p>
 

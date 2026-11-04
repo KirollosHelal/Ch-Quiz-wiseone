@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Award, Flame, CheckCircle, Calendar, Phone, Heart } from 'lucide-react';
+import { X, Award, Flame, CheckCircle, Calendar, Phone, Heart, LogOut } from 'lucide-react';
 import { User, DailyQuiz } from '../types';
 
 interface UserProfileModalProps {
@@ -7,6 +7,7 @@ interface UserProfileModalProps {
   quizzes: DailyQuiz[];
   onClose: () => void;
   onSelectQuiz: (quiz: DailyQuiz) => void;
+  onLogout?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -14,6 +15,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   quizzes,
   onClose,
   onSelectQuiz,
+  onLogout,
 }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -116,7 +118,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           )}
         </div>
 
-        <div className="pt-6 mt-6 border-t border-stone-200 flex justify-end">
+        <div className="pt-6 mt-6 border-t border-stone-200 flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
+          {onLogout && (
+            <button
+              onClick={() => {
+                onLogout();
+                onClose();
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-300 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+            >
+              <LogOut className="w-4 h-4 text-rose-600" />
+              <span>تسجيل الخروج من الحساب</span>
+            </button>
+          )}
+
           <button
             onClick={onClose}
             className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer"

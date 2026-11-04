@@ -71,22 +71,34 @@ export const SeniorToolbar: React.FC<SeniorToolbarProps> = ({
         </div>
 
         {/* Right: User status (Guest vs Authenticated) */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
           {currentUser ? (
-            <div className="flex items-center gap-1.5 bg-amber-900/80 px-2.5 py-1 rounded-lg border border-amber-800/80">
-              <UserIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="font-bold text-amber-100 text-[11px] sm:text-xs truncate max-w-[100px] sm:max-w-none">
-                {currentUser.fullName}
-              </span>
-              <span className="font-mono text-amber-300 font-bold text-[11px]">({currentUser.totalPoints}ن)</span>
-
-              {currentUser.role === 'admin' && (
-                <span className="bg-amber-400 text-amber-950 text-[10px] px-1.5 py-0.2 rounded font-black whitespace-nowrap flex items-center gap-0.5">
-                  <Shield className="w-2.5 h-2.5" />
-                  مشرف
+            <>
+              <div className="flex items-center gap-1.5 bg-amber-900/80 px-2 sm:px-2.5 py-1 rounded-lg border border-amber-800/80">
+                <UserIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-bold text-amber-100 text-[11px] sm:text-xs truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">
+                  {currentUser.fullName}
                 </span>
-              )}
-            </div>
+                <span className="font-mono text-amber-300 font-bold text-[11px]">({currentUser.totalPoints}ن)</span>
+
+                {currentUser.role === 'admin' && (
+                  <span className="bg-amber-400 text-stone-950 text-[10px] px-1.5 py-0.2 rounded font-black whitespace-nowrap flex items-center gap-0.5">
+                    <Shield className="w-2.5 h-2.5" />
+                    مشرف
+                  </span>
+                )}
+              </div>
+
+              {/* Explicit Mobile/Tablet switch & Logout button in toolbar */}
+              <button
+                onClick={onOpenAuth}
+                className="flex items-center gap-1 text-amber-300 hover:text-white text-[11px] font-semibold bg-amber-900/60 hover:bg-amber-900 px-2 py-1 rounded-lg border border-amber-700/50 transition-colors cursor-pointer"
+                title="تبديل الحساب أو تسجيل الدخول بحساب آخر"
+              >
+                <LogIn className="w-3 h-3 text-amber-400" />
+                <span>تبديل</span>
+              </button>
+            </>
           ) : (
             <button
               onClick={onOpenAuth}

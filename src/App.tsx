@@ -327,6 +327,10 @@ export default function App() {
             setSelectedQuiz(q);
             setCurrentTab('today');
           }}
+          onLogout={() => {
+            StorageService.logout();
+            setCurrentUser(null);
+          }}
         />
       )}
 

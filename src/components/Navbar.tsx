@@ -92,29 +92,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </nav>
 
-          {/* Right Action: Auth or Profile */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Action: Auth or Profile + Distinct Logout Button */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {currentUser ? (
               <>
                 <button
                   onClick={onOpenProfile}
-                  className="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 sm:gap-2"
+                  className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
                   title="فتح الملف الشخصي وسجل الإجابات"
                 >
                   <span className="w-2 h-2 rounded-full bg-emerald-700" />
-                  <span className="truncate max-w-[85px] sm:max-w-[140px]">{currentUser.fullName}</span>
+                  <span className="truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">{currentUser.fullName}</span>
                   <span className="font-mono text-amber-950 bg-amber-300/80 px-1 py-0.2 rounded text-[11px] sm:text-xs">
                     {currentUser.totalPoints}ن
                   </span>
                 </button>
 
+                {/* Explicit Logout Button - clearly visible with red tint and high contrast */}
                 <button
                   onClick={onLogout}
-                  className="p-1.5 sm:p-2 text-stone-400 hover:text-rose-400 hover:bg-stone-800 rounded-xl transition-colors cursor-pointer text-xs"
-                  title="تسجيل الخروج"
-                  aria-label="تسجيل الخروج"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-300 hover:text-white bg-rose-950/70 hover:bg-rose-900 border border-rose-700/60 rounded-xl transition-all cursor-pointer text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
+                  title="تسجيل الخروج من الحساب"
+                  aria-label="تسجيل الخروج من الحساب"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
+                  <span className="hidden xs:inline">خروج</span>
                 </button>
               </>
             ) : (
@@ -201,6 +203,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Shield className={`w-5 h-5 mb-0.5 ${currentTab === 'admin' ? 'stroke-[2.5]' : ''}`} />
               <span className="text-[10px] leading-tight">الخادم</span>
+            </button>
+          )}
+
+          {/* Tab 6: User Profile & Quick Logout on Mobile */}
+          {currentUser && (
+            <button
+              onClick={onOpenProfile}
+              className="flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-colors cursor-pointer text-stone-400 hover:text-amber-300 font-medium"
+              title="الملف الشخصي وتسجيل الخروج"
+            >
+              <div className="w-5 h-5 rounded-full bg-amber-400/20 border border-amber-400/60 flex items-center justify-center mb-0.5">
+                <span className="text-[10px] font-bold text-amber-300">👤</span>
+              </div>
+              <span className="text-[10px] leading-tight truncate max-w-[50px]">حسابي</span>
             </button>
           )}
         </div>
