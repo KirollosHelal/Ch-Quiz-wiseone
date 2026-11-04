@@ -266,7 +266,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!text || text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
         return {
           success: false,
-          message: 'تعذر الاتصال بسيرفر Hostinger (جدار الحماية في Hostinger يمنع الاتصال المباشر بقواعد البيانات من خارج السيرفر). ننصحك باستخدام الطريقة الأسرع والأسهل 100%: اضغط على زر «تنزيل ملف bible_quiz.sql» في الأسفل واستورده داخل phpMyAdmin بضغطة زر واحدة!',
+          message: 'انتهت مهلة استجابة الخادم أثناء محاولة الاتصال بـ Hostinger. يرجى التأكد من إضافة عنوان IP السيرفر إلى Remote MySQL في Hostinger أو استخدام منفذ 3306.',
         };
       }
       return JSON.parse(text);
@@ -332,10 +332,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         success: Boolean(data.success),
         message: data.message || (data.success ? 'تم إنشاء الجداول بنجاح!' : 'تعذر إنشاء الجداول.'),
       });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
     } catch (err: any) {
       setSyncResult({
         success: false,
         message: `تعذر تنفيذ سكربت الجداول: ${err.message || 'استخدم ملف SQL المرفق للاستيراد في phpMyAdmin'}`,
+      });
+    } finally {
+      setIsSyncingTables(false);
+    }
+  };
+
+  // Sync / Pull data from Hostinger MySQL into Website
+  const handlePullFromMysql = async () => {
+    setIsTestingDb(true);
+    setDbTestResult(null);
+
+    try {
+      const res = await fetch('/api/db/pull-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbConfig),
+      });
+      const data = await parseSafeApiResponse(res, 'فشل جلب البيانات من Hostinger.');
+      if (data.success) {
+        if (Array.isArray(data.quizzes) && data.quizzes.length > 0) {
+          StorageService.saveQuizzes(data.quizzes);
+        }
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          StorageService.saveUsers(data.users);
+        }
+        setDbTestResult({
+          success: true,
+          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين من Hostinger بنجاح!',
+        });
+        setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      } else {
+        setDbTestResult({
+          success: false,
+          message: data.message || 'تعذر سحب البيانات من Hostinger.',
+        });
+      }
+    } catch (err: any) {
+      setDbTestResult({
+        success: false,
+        message: `خطأ في جلب البيانات: ${err.message}`,
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  // Sync / Push website data to Hostinger MySQL
+  const handlePushToMysql = async () => {
+    setIsSyncingTables(true);
+    setSyncResult(null);
+
+    try {
+      const currentQuizzes = StorageService.getQuizzes();
+      const currentUsers = StorageService.getUsers();
+
+      const res = await fetch('/api/db/push-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: dbConfig,
+          quizzes: currentQuizzes,
+          users: currentUsers,
+        }),
+      });
+      const data = await parseSafeApiResponse(res, 'فشل رفع البيانات إلى Hostinger.');
+      setSyncResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم رفع البيانات بنجاح!' : 'فشل رفع البيانات.'),
+      });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: `خطأ في رفع البيانات: ${err.message}`,
       });
     } finally {
       setIsSyncingTables(false);
@@ -1166,20 +1248,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </span>
             </div>
 
+            {/* Hostinger Remote MySQL Setup Alert */}
+            <div className="bg-amber-50/80 border-2 border-amber-300 p-4 rounded-2xl space-y-2 text-xs text-amber-950">
+              <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                <ShieldCheck className="w-4 h-4 text-amber-700" />
+                <span>كيفية تفعيل الاتصال المباشر والمزامنة في Hostinger (خطوة بسيطة واحدة):</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1 text-stone-700 pr-1">
+                <li>افتح لوحة تحكم <strong>Hostinger (hPanel)</strong> &gt; توجه إلى <strong>Databases (قواعد البيانات)</strong>.</li>
+                <li>انقر على قسم <strong>Remote MySQL (الاتصال الخارجي بـ MySQL)</strong>.</li>
+                <li>في خانة <strong>IP (IPv4 أو IPv6)</strong> اكتب الرمز <code>%</code> (ليسمح بالاتصال من أي عنوان IP) أو عنوان IP، ثم اختر اسم قاعدة بياناتك واضغط <strong>Create (إنشاء)</strong>.</li>
+                <li>في خانة عنوان السيرفر أدناه، تأكد من كتابة <strong>MySQL Hostname أو IP السيرفر</strong> الموجود في صفحة قواعد البيانات وليس كلمة <code>localhost</code>.</li>
+              </ol>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  عنوان السيرفر (MySQL Host):
+                  عنوان السيرفر الخارجي (MySQL Hostname / Server IP):
                 </label>
                 <input
                   type="text"
                   value={dbConfig.host}
                   onChange={(e) => setDbConfig({ ...dbConfig, host: e.target.value })}
-                  placeholder="مثال: localhost أو srv123.main-hosting.eu"
+                  placeholder="مثال: srv123.main-hosting.eu أو IP السيرفر مثل 185.xxx.xxx.xxx"
                   className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 />
-                <p className="text-[11px] text-stone-500 mt-1">
-                  * يتم استخدام المنفذ الافتراضي (Port 3306) تلقائياً دون الحاجة لتحديده.
+                <p className="text-[11px] text-amber-800 font-medium mt-1">
+                  * هام: لا تضع «localhost»؛ ضع Hostname أو عنوان IP السيرفر الظاهر في صفحة Hostinger MySQL Databases.
                 </p>
               </div>
 
@@ -1223,25 +1319,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-200">
+            {/* Action buttons: Test, Sync Pull, Sync Push, Sync Create */}
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-200">
               <button
                 type="button"
                 onClick={handleTestDatabaseConnection}
                 disabled={isTestingDb}
-                className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
               >
                 <Server className="w-4 h-4 text-amber-400" />
-                <span>{isTestingDb ? 'جاري الفحص...' : 'اختبار الاتصال بقاعدة بيانات Hostinger'}</span>
+                <span>{isTestingDb ? 'جاري الفحص...' : 'اختبار الاتصال بـ Hostinger'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePullFromMysql}
+                disabled={isTestingDb}
+                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                title="جلب وتحديث المسابقات والمتسابقين من قاعدة بيانات Hostinger إلى الموقع"
+              >
+                <RefreshCw className={`w-4 h-4 ${isTestingDb ? 'animate-spin' : ''}`} />
+                <span>سحب البيانات من Hostinger ➔ الموقع</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePushToMysql}
+                disabled={isSyncingTables}
+                className="px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                title="رفع مسابقات وبيانات الموقع الحالية إلى قاعدة بيانات Hostinger"
+              >
+                <Upload className="w-4 h-4" />
+                <span>مزامنة ورفع بيانات الموقع ➔ Hostinger</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleSyncTables}
                 disabled={isSyncingTables}
-                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                className="px-4 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-300 cursor-pointer flex items-center gap-1.5"
+                title="إنشاء هيكل الجداول إذا كانت القاعدة فارغة"
               >
-                <CheckCircle className="w-4 h-4" />
-                <span>{isSyncingTables ? 'جاري الإنشاء...' : 'إنشاء الجداول في سيرفر Hostinger تلقائياً'}</span>
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>إنشاء الجداول تلقائياً</span>
               </button>
             </div>
           </div>

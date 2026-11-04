@@ -33,15 +33,27 @@ async function startServer() {
     }
   };
 
+  const cleanHostString = (rawHost: string) => {
+    let clean = (rawHost || '').trim();
+    // If user entered srv123.main-hosting.eu:3306 or https://..., strip protocol and port
+    clean = clean.replace(/^https?:\/\//i, '');
+    if (clean.includes(':')) {
+      clean = clean.split(':')[0];
+    }
+    return clean;
+  };
+
   const getFriendlyErrorMessage = (err: any, database: string, host: string) => {
     if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-      return 'تم رفض الوصول (Access Denied). يرجى التأكد من اسم المستخدم وكلمة المرور وصلاحيات المستخدم في لوحة تحكم Hostinger.';
+      return `تم رفض الوصول (Access Denied). اسم المستخدم أو كلمة المرور غير صحيحة، أو لم يتم إعطاء الصلاحيات الكاملة للمستخدم على قاعدة «${database}» في لوحة Hostinger.`;
     }
     if (err.code === 'ER_BAD_DB_ERROR') {
-      return `قاعدة البيانات «${database}» غير موجودة في سيرفر Hostinger. يرجى إنشاؤها أولاً من phpMyAdmin أو cPanel.`;
+      return `قاعدة البيانات «${database}» غير موجودة في سيرفر Hostinger. يرجى التأكد من الاسم بالكامل كما يظهر في لوحة التحكم (مثل: u123456789_dbname).`;
     }
     if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
-      return `تعذر الاتصال بسيرفر Hostinger على «${host}». استضافة Hostinger المشتركة تمنع افتراضياً الاتصال الخارجي المباشر إلا بعد تفعيل (Remote MySQL). يمكنك بدلاً من ذلك استخدام الخيار الموصى به: اضغط زر «تنزيل ملف bible_quiz.sql» واستورده مباشرة داخل phpMyAdmin بنقرة واحدة!`;
+      return `تعذر الوصول إلى سيرفر MySQL «${host}». يرجى التأكد من خطوتين في Hostinger:
+1) لا تستخدم "localhost" كعنوان للسيرفر لأن الموقع هنا يعمل على استضافة سحابية مستقلة؛ استخدم عنوان IP السيرفر أو Hostname الخاص بقاعدة البيانات (تجدها في قسم MySQL Databases في Hostinger).
+2) تفعيل (Remote MySQL) في Hostinger وإضافة الرمز % أو عنوان IP للسماح بالاتصال الخارجي بقاعدة البيانات.`;
     }
     return `فشل الاتصال: ${err.message || 'خطأ غير معروف'}`;
   };
@@ -51,37 +63,52 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     const { host, port, database, user, password, ssl } = req.body;
 
-    if (!host || !database || !user) {
+    const cleanedHost = cleanHostString(host);
+
+    if (!cleanedHost || !database || !user) {
       return res.json({
         success: false,
-        message: 'يرجى إدخال عنوان الخادم (Host)، واسم قاعدة البيانات (Database)، واسم المستخدم (User).',
+        message: 'يرجى إدخال عنوان السيرفر (Host) واسم قاعدة البيانات (Database) واسم المستخدم (User).',
+      });
+    }
+
+    if (cleanedHost.toLowerCase() === 'localhost' || cleanedHost === '127.0.0.1') {
+      return res.json({
+        success: false,
+        message: 'تنبيه: "localhost" تشير للسيرفر المحلي الداخلي للموقع وليس لسيرفر Hostinger. يرجى نسخ عنوان السيرفر الخارجي (MySQL Hostname / IP) من لوحة تحكم Hostinger > MySQL Databases (مثل: srv123.main-hosting.eu أو IP السيرفر).',
       });
     }
 
     try {
+      const parsedPort = port ? parseInt(port) : (host.includes(':') ? parseInt(host.split(':')[1]) : 3306);
       const connection = await connectMysqlWithTimeout({
-        host,
-        port: port ? parseInt(port) : 3306,
-        user,
+        host: cleanedHost,
+        port: isNaN(parsedPort) ? 3306 : parsedPort,
+        user: (user || '').trim(),
         password: password || '',
-        database,
-        connectTimeout: 3000,
+        database: (database || '').trim(),
+        connectTimeout: 5000,
         ssl: ssl ? { rejectUnauthorized: false } : undefined,
-      }, 3500);
+      }, 5500);
 
       const [rows] = await connection.query('SELECT 1 + 1 AS solution, NOW() as server_time');
+      
+      // Also check tables exist
+      const [tableRows] = await connection.query('SHOW TABLES');
       await connection.end();
+
+      const tableNames = (tableRows as any[]).map(r => Object.values(r)[0]);
 
       return res.json({
         success: true,
-        message: `تم الاتصال بنجاح بقاعدة بيانات Hostinger (${database})!`,
+        message: `تم الاتصال بنجاح بقاعدة بيانات Hostinger (${database})! عدد الجداول الموجودة: ${tableNames.length}.`,
         serverTime: (rows as any)[0]?.server_time,
+        tables: tableNames,
       });
     } catch (err: any) {
       console.error('MySQL connection error:', err);
-      const friendlyMsg = getFriendlyErrorMessage(err, database, host);
+      const friendlyMsg = getFriendlyErrorMessage(err, database, cleanedHost);
 
-      // Return 200 with success: false so intermediate proxies never transform to 502/504 HTML
       return res.json({
         success: false,
         message: friendlyMsg,
@@ -195,6 +222,187 @@ async function startServer() {
       return res.json({
         success: false,
         message: `تعذر إنشاء الجداول: ${friendlyMsg}`,
+      });
+    }
+  });
+
+  // --- API: Pull / Sync Data from Hostinger MySQL into Website ---
+  app.post('/api/db/pull-data', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { host, port, database, user, password, ssl, tablePrefix = 'cbq_' } = req.body;
+    const cleanedHost = cleanHostString(host);
+
+    if (!cleanedHost || !database || !user) {
+      return res.json({
+        success: false,
+        message: 'يرجى إدخال بيانات السيرفر واسم قاعدة البيانات أولاً.',
+      });
+    }
+
+    try {
+      const parsedPort = port ? parseInt(port) : (host.includes(':') ? parseInt(host.split(':')[1]) : 3306);
+      const connection = await connectMysqlWithTimeout({
+        host: cleanedHost,
+        port: isNaN(parsedPort) ? 3306 : parsedPort,
+        user: (user || '').trim(),
+        password: password || '',
+        database: (database || '').trim(),
+        connectTimeout: 5000,
+        ssl: ssl ? { rejectUnauthorized: false } : undefined,
+      }, 5500);
+
+      // Check which tables exist
+      const [tableRows] = await connection.query('SHOW TABLES');
+      const tableNames: string[] = (tableRows as any[]).map(r => Object.values(r)[0] as string);
+
+      let quizzes: any[] = [];
+      let users: any[] = [];
+      let pointLogs: any[] = [];
+
+      const quizzesTable = `${tablePrefix}daily_quizzes`;
+      const usersTable = `${tablePrefix}users`;
+      const logsTable = `${tablePrefix}point_logs`;
+
+      if (tableNames.includes(quizzesTable)) {
+        const [qRows] = await connection.query(`SELECT * FROM \`${quizzesTable}\` ORDER BY dayNumber ASC`);
+        quizzes = (qRows as any[]).map(q => ({
+          ...q,
+          isMainToday: Boolean(q.isMainToday),
+          published: Boolean(q.published),
+          verses: typeof q.versesJson === 'string' ? JSON.parse(q.versesJson) : q.versesJson || [],
+          questions: typeof q.questionsJson === 'string' ? JSON.parse(q.questionsJson) : q.questionsJson || [],
+          date: q.date instanceof Date ? q.date.toISOString().split('T')[0] : String(q.date),
+        }));
+      }
+
+      if (tableNames.includes(usersTable)) {
+        const [uRows] = await connection.query(`SELECT * FROM \`${usersTable}\``);
+        users = (uRows as any[]).map(u => ({
+          ...u,
+          submissions: [],
+        }));
+      }
+
+      if (tableNames.includes(logsTable)) {
+        const [lRows] = await connection.query(`SELECT * FROM \`${logsTable}\` ORDER BY createdAt DESC`);
+        pointLogs = (lRows as any[]).map(l => ({
+          id: l.id,
+          userId: l.userId,
+          userName: l.userName,
+          change: l.pointsChange,
+          reason: l.reason,
+          adminName: l.adminName,
+          date: l.createdAt instanceof Date ? l.createdAt.toISOString().split('T')[0] : String(l.createdAt),
+        }));
+      }
+
+      await connection.end();
+
+      return res.json({
+        success: true,
+        message: `تم جلب البيانات بنجاح من Hostinger! (تم العثور على ${quizzes.length} مسابقة و ${users.length} متسابق).`,
+        quizzes,
+        users,
+        pointLogs,
+      });
+    } catch (err: any) {
+      console.error('Error pulling data from MySQL:', err);
+      const friendlyMsg = getFriendlyErrorMessage(err, database, cleanedHost);
+      return res.json({
+        success: false,
+        message: friendlyMsg,
+      });
+    }
+  });
+
+  // --- API: Push / Upload Local Website Data into Hostinger MySQL ---
+  app.post('/api/db/push-data', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { config, quizzes, users } = req.body;
+    const { host, port, database, user, password, ssl, tablePrefix = 'cbq_' } = config || {};
+    const cleanedHost = cleanHostString(host);
+
+    if (!cleanedHost || !database || !user) {
+      return res.json({
+        success: false,
+        message: 'بيانات الاتصال بقاعدة البيانات غير مكتملة.',
+      });
+    }
+
+    try {
+      const parsedPort = port ? parseInt(port) : (host.includes(':') ? parseInt(host.split(':')[1]) : 3306);
+      const connection = await connectMysqlWithTimeout({
+        host: cleanedHost,
+        port: isNaN(parsedPort) ? 3306 : parsedPort,
+        user: (user || '').trim(),
+        password: password || '',
+        database: (database || '').trim(),
+        connectTimeout: 5000,
+        ssl: ssl ? { rejectUnauthorized: false } : undefined,
+      }, 6000);
+
+      // Insert or update users
+      if (Array.isArray(users)) {
+        for (const u of users) {
+          await connection.query(`
+            INSERT INTO \`${tablePrefix}users\` 
+              (\`id\`, \`fullName\`, \`email\`, \`password\`, \`phone\`, \`ageGroup\`, \`role\`, \`totalPoints\`, \`quizzesSolved\`, \`currentStreak\`, \`registeredBy\`, \`servantNotes\`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+              \`fullName\`=VALUES(\`fullName\`),
+              \`totalPoints\`=VALUES(\`totalPoints\`),
+              \`quizzesSolved\`=VALUES(\`quizzesSolved\`),
+              \`currentStreak\`=VALUES(\`currentStreak\`),
+              \`role\`=VALUES(\`role\`),
+              \`password\`=COALESCE(VALUES(\`password\`), \`password\`)
+          `, [
+            u.id, u.fullName, u.email || null, u.password || null, u.phone || '',
+            u.ageGroup || 'senior', u.role || 'user', u.totalPoints || 0,
+            u.quizzesSolved || 0, u.currentStreak || 0, u.registeredBy || 'self',
+            u.servantNotes || null
+          ]);
+        }
+      }
+
+      // Insert or update quizzes
+      if (Array.isArray(quizzes)) {
+        for (const q of quizzes) {
+          await connection.query(`
+            INSERT INTO \`${tablePrefix}daily_quizzes\` 
+              (\`id\`, \`dayNumber\`, \`dayLabel\`, \`date\`, \`isMainToday\`, \`testament\`, \`bookName\`, \`chapterNumber\`, \`title\`, \`keyVerse\`, \`reflection\`, \`audioUrl\`, \`audioDuration\`, \`versesJson\`, \`questionsJson\`, \`totalPoints\`, \`published\`)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+              \`title\`=VALUES(\`title\`),
+              \`dayLabel\`=VALUES(\`dayLabel\`),
+              \`isMainToday\`=VALUES(\`isMainToday\`),
+              \`keyVerse\`=VALUES(\`keyVerse\`),
+              \`reflection\`=VALUES(\`reflection\`),
+              \`versesJson\`=VALUES(\`versesJson\`),
+              \`questionsJson\`=VALUES(\`questionsJson\`),
+              \`totalPoints\`=VALUES(\`totalPoints\`)
+          `, [
+            q.id, q.dayNumber, q.dayLabel || null, q.date, q.isMainToday ? 1 : 0,
+            q.testament || 'new', q.bookName, q.chapterNumber, q.title,
+            q.keyVerse || null, q.reflection || null, q.audioUrl,
+            q.audioDuration || '5:00', JSON.stringify(q.verses || []),
+            JSON.stringify(q.questions || []), q.totalPoints || 20,
+            q.published !== false ? 1 : 0
+          ]);
+        }
+      }
+
+      await connection.end();
+
+      return res.json({
+        success: true,
+        message: 'تمت مزامنة ورفع كافة المسابقات والمتسابقين بنجاح إلى قاعدة بيانات Hostinger MySQL!',
+      });
+    } catch (err: any) {
+      console.error('Error pushing data to MySQL:', err);
+      const friendlyMsg = getFriendlyErrorMessage(err, database, cleanedHost);
+      return res.json({
+        success: false,
+        message: friendlyMsg,
       });
     }
   });
