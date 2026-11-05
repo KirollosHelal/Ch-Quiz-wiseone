@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Calendar, CheckCircle2, Clock, BookOpen, Search, ArrowLeft, Star, Volume2 } from 'lucide-react';
 import { DailyQuiz, User } from '../types';
+import { StorageService } from '../services/storage';
+import { Lock } from 'lucide-react';
 
 interface PreviousDaysProps {
   quizzes: DailyQuiz[];
@@ -18,6 +20,7 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
   onSetMainDay,
 }) => {
   const [search, setSearch] = useState('');
+  const isAdmin = currentUser?.role === 'admin';
 
   // Sort quizzes by dayNumber descending
   const sorted = [...quizzes].sort((a, b) => (b.dayNumber || 0) - (a.dayNumber || 0));
@@ -35,13 +38,13 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-900/60 px-3 py-1 rounded-full border border-amber-700/50 mb-2">
             <Calendar className="w-3.5 h-3.5" />
-            <span>أرشيف مسابقات الأيام السابقة</span>
+            <span>أرشيف مسابقات الأيام والكتاب المقدس</span>
           </div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-amber-50">
-            اختر أي يوم سابق للقراءة وحل المسابقة
+            تصفح الأيام السابقة والمجدولة
           </h1>
           <p className="text-stone-300 text-xs sm:text-sm mt-1">
-            لا تفوت أي يوم! يمكنك دائماً الرجوع للأيام الماضية وحل أسئلتها لكسب النقاط لاسمك
+            الأيام المتاحة يمكنك قراءتها وحلها فوراً، بينما الأيام القادمة تفتح تلقائياً بحسب تاريخها بتوقيت مصر 🇪🇬
           </p>
         </div>
 
@@ -64,35 +67,46 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
           const submission = currentUser?.submissions?.find(s => s.quizId === quiz.id);
           const isSolved = !!submission;
           const isMain = quiz.isMainToday;
+          const isFutureLocked = StorageService.isQuizLockedFuture(quiz.date);
 
           return (
             <div
               key={quiz.id}
               className={`bg-white rounded-3xl p-6 border transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${
-                isMain ? 'border-2 border-amber-500 ring-4 ring-amber-400/20' : 'border-stone-200'
+                isMain 
+                  ? 'border-2 border-amber-500 ring-4 ring-amber-400/20' 
+                  : isFutureLocked
+                    ? 'border-dashed border-amber-300/80 bg-amber-50/20'
+                    : 'border-stone-200'
               }`}
             >
               <div>
-                {/* Top Row: Day Tag & Solved Badge */}
+                {/* Top Row: Day Tag & Solved / Locked Badge */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-3 py-1 rounded-xl bg-amber-100 text-amber-900 text-xs font-black">
                       اليوم {quiz.dayNumber}
                     </span>
-                    {isMain && (
+                    {isMain && !isFutureLocked && (
                       <span className="px-2.5 py-0.5 rounded-lg bg-amber-500 text-stone-950 text-[11px] font-extrabold flex items-center gap-1">
                         <Star className="w-3 h-3 fill-current" />
                         اليوم الرئيسي الحالي
                       </span>
                     )}
+                    {isFutureLocked && (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-600/40 text-amber-950 text-[11px] font-extrabold flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-700" />
+                        <span>قادم (يفتح في {quiz.date})</span>
+                      </span>
+                    )}
                   </div>
 
-                  <span className="text-xs text-stone-500 font-mono">
+                  <span className="text-xs text-stone-500 font-mono font-bold">
                     {quiz.date}
                   </span>
                 </div>
 
-                {/* Scripture & Title */}
+                {/* Scripture & Title (Visible to user as requested) */}
                 <h3 className="text-xl font-extrabold text-stone-900 mb-1">
                   {quiz.bookName} - الأصحاح {quiz.chapterNumber}
                 </h3>
@@ -100,18 +114,28 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
                   {quiz.title}
                 </p>
 
-                {/* Key Verse Excerpt */}
-                {quiz.keyVerse && (
+                {/* Key Verse Excerpt or Locked Notice */}
+                {isFutureLocked && !isAdmin ? (
+                  <div className="bg-amber-100/60 p-3 rounded-2xl border border-amber-300/60 mb-4 text-xs text-amber-900 font-semibold leading-relaxed flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>يفتح الأصحاح وقراءته والمسابقة عند حلول تاريخ اليوم بتوقيت مصر 🇪🇬</span>
+                  </div>
+                ) : quiz.keyVerse ? (
                   <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/80 mb-4 text-xs font-scripture text-amber-950 font-bold leading-relaxed">
                     «{quiz.keyVerse.substring(0, 95)}...»
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Status and Action Buttons */}
               <div className="pt-4 border-t border-stone-100 space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  {isSolved ? (
+                  {isFutureLocked ? (
+                    <span className="text-amber-900 font-bold flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-amber-700" />
+                      <span>مغلق للحل حتى {quiz.date}</span>
+                    </span>
+                  ) : isSolved ? (
                     <span className="text-emerald-700 font-bold flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>تم الحل ({submission?.score} / {quiz.totalPoints} نقطة)</span>
@@ -135,24 +159,35 @@ export const PreviousDays: React.FC<PreviousDaysProps> = ({
                     className="flex-1 py-2.5 px-3 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>قراءة وسماع</span>
+                    <span>{isFutureLocked && !isAdmin ? 'معاينة الموعد' : 'قراءة وسماع'}</span>
                   </button>
 
-                  <button
-                    onClick={() => onSelectDayForQuiz(quiz)}
-                    className={`flex-1 py-2.5 px-3 font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5 ${
-                      isSolved
-                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-950'
-                        : 'bg-amber-600 hover:bg-amber-700 text-white'
-                    }`}
-                  >
-                    <span>{isSolved ? 'مراجعة الحل' : 'حل مسابقة اليوم'}</span>
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                  </button>
+                  {isFutureLocked && !isAdmin ? (
+                    <button
+                      disabled
+                      className="flex-1 py-2.5 px-3 font-bold rounded-xl text-xs bg-stone-200 text-stone-500 cursor-not-allowed flex items-center justify-center gap-1.5 shadow-inner"
+                      title={`مغلق حتى حلول تاريخ ${quiz.date} بتوقيت مصر`}
+                    >
+                      <Lock className="w-3.5 h-3.5 text-stone-400" />
+                      <span>غير متاح للحل 🔒</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onSelectDayForQuiz(quiz)}
+                      className={`flex-1 py-2.5 px-3 font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isSolved
+                          ? 'bg-amber-100 hover:bg-amber-200 text-amber-950'
+                          : 'bg-amber-600 hover:bg-amber-700 text-white'
+                      }`}
+                    >
+                      <span>{isSolved ? 'مراجعة الحل' : (isAdmin && isFutureLocked ? 'تجربة الأسئلة (خادم)' : 'حل مسابقة اليوم')}</span>
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Admin Quick Action: Set as Main Today */}
-                {currentUser?.role === 'admin' && !isMain && onSetMainDay && (
+                {isAdmin && !isMain && onSetMainDay && (
                   <button
                     onClick={() => onSetMainDay(quiz.id)}
                     className="w-full text-center text-[11px] text-amber-800 hover:text-amber-950 font-bold underline py-1 cursor-pointer"

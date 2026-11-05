@@ -4,7 +4,7 @@ import {
   CheckCircle, FileText, Download, Upload, RefreshCw, 
   Plus, Check, X, SlidersHorizontal, UserPlus, Sparkles,
   Database, Server, Copy, ExternalLink, ShieldCheck, AlertCircle, Calendar, Star,
-  Link2, Zap, Globe, FileCode, CheckCircle2, Shield, Info, ArrowRight
+  Link2, Zap, Globe, FileCode, CheckCircle2, Shield, Info, ArrowRight, Lock
 } from 'lucide-react';
 import { DailyQuiz, Question, QuestionType, User, ScriptureVerse, DatabaseConfig } from '../types';
 import { StorageService } from '../services/storage';
@@ -742,7 +742,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       اليوم الرئيسي الحالي
                     </span>
                   )}
-                  <span className="text-xs text-stone-500 font-mono">
+                  {StorageService.isQuizLockedFuture(q.date) && (
+                    <span className="text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-xs">
+                      <Lock className="w-3 h-3 text-amber-700" />
+                      <span>مغلق للمتسابقين (يفتح في {q.date})</span>
+                    </span>
+                  )}
+                  <span className="text-xs text-stone-500 font-mono font-bold">
                     {q.date}
                   </span>
                 </div>
@@ -959,6 +965,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className="w-full p-2.5 rounded-xl border border-stone-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
                 required
               />
+              {StorageService.isQuizLockedFuture(quizDate) && (
+                <p className="mt-1.5 text-[11px] font-bold text-amber-900 bg-amber-50 p-2 rounded-lg border border-amber-300/80 leading-relaxed">
+                  🔒 تاريخ متقدم عن اليوم الحالي: سيتم إغلاق الأصحاح والمسابقة تلقائياً أمام المتسابقين لحين حلول تاريخ اليوم بتوقيت مصر 🇪🇬، وسيظهر لهم اسم السفر والأصحاح فقط كما طلبت.
+                </p>
+              )}
             </div>
 
             <div>

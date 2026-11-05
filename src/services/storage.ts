@@ -79,18 +79,64 @@ export const StorageService = {
     return this.getQuizzes().find(q => q.dayNumber === dayNumber);
   },
 
-  // Returns the current Main Day quiz
-  getMainTodayQuiz(): DailyQuiz {
-    const quizzes = this.getQuizzes();
-    const explicitMain = quizzes.find(q => q.isMainToday);
-    if (explicitMain) return explicitMain;
-
-    // Otherwise, pick the one with highest dayNumber
-    const sorted = [...quizzes].sort((a, b) => (b.dayNumber || 0) - (a.dayNumber || 0));
-    return sorted[0] || INITIAL_QUIZZES[0];
+  // --- Egypt Timezone (Africa/Cairo) & Date Logic ---
+  getEgyptTodayDate(): string {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Cairo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      return formatter.format(new Date()); // Formats as YYYY-MM-DD in Cairo
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
   },
 
-  // Returns all previous days (excluding main today, sorted descending by dayNumber)
+  isQuizLockedFuture(quizDate?: string): boolean {
+    if (!quizDate) return false;
+    const egyptToday = this.getEgyptTodayDate();
+    return quizDate > egyptToday;
+  },
+
+  isQuizTodayInEgypt(quizDate?: string): boolean {
+    if (!quizDate) return false;
+    return quizDate === this.getEgyptTodayDate();
+  },
+
+  // Returns the current Main Day quiz (strictly respecting Egypt timezone)
+  // Future days are never returned as the active today quiz ahead of time.
+  // When a future date arrives in Egypt, it automatically unlocks and becomes today's quiz.
+  getMainTodayQuiz(): DailyQuiz {
+    const quizzes = this.getQuizzes();
+    const egyptToday = this.getEgyptTodayDate();
+
+    // 1. Primary: Unlocked quiz whose date matches TODAY in Egypt
+    const todayMatch = quizzes.find(q => q.date === egyptToday);
+    if (todayMatch) return todayMatch;
+
+    // 2. Secondary: An unlocked quiz (date <= egyptToday) marked as isMainToday
+    const unlockedQuizzes = quizzes.filter(q => !q.date || q.date <= egyptToday);
+    const explicitMain = unlockedQuizzes.find(q => q.isMainToday);
+    if (explicitMain) return explicitMain;
+
+    // 3. Tertiary: The latest unlocked quiz by date / dayNumber
+    if (unlockedQuizzes.length > 0) {
+      const sorted = [...unlockedQuizzes].sort((a, b) => {
+        if (a.date && b.date && a.date !== b.date) {
+          return b.date.localeCompare(a.date);
+        }
+        return (b.dayNumber || 0) - (a.dayNumber || 0);
+      });
+      return sorted[0];
+    }
+
+    // 4. Fallback if all quizzes are future or empty
+    return quizzes[0] || INITIAL_QUIZZES[0];
+  },
+
+  // Returns all previous and future days (excluding main today, sorted descending by dayNumber)
   getPreviousDaysQuizzes(): DailyQuiz[] {
     const quizzes = this.getQuizzes();
     const mainQuiz = this.getMainTodayQuiz();

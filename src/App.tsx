@@ -163,42 +163,57 @@ export default function App() {
         {currentTab === 'today' && selectedQuiz && (
           <div className="space-y-5 sm:space-y-6 w-full">
             {/* Main Day Header Card with High Contrast, Sharp Readable Typography */}
-            <div className="w-full bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 border-2 border-amber-500/50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl text-white relative overflow-hidden">
-              {/* Subtle decorative background glow */}
-              <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            {(() => {
+              const isSelectedFuture = StorageService.isQuizLockedFuture(selectedQuiz.date);
+              const isLockedForUser = isSelectedFuture && currentUser?.role !== 'admin';
 
-              <div className="flex items-center gap-3.5 w-full sm:w-auto relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shrink-0 shadow-md ring-2 ring-amber-300/60">
-                  ★
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                      اليوم الرئيسي الحصري
-                    </span>
-                    <h3 className="font-black text-white text-base sm:text-lg tracking-tight">
-                      {selectedQuiz.dayLabel || `اليوم ${selectedQuiz.dayNumber}`}: {selectedQuiz.bookName} (الأصحاح {selectedQuiz.chapterNumber})
-                    </h3>
+              return (
+                <div className="w-full bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 border-2 border-amber-500/50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl text-white relative overflow-hidden">
+                  {/* Subtle decorative background glow */}
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="flex items-center gap-3.5 w-full sm:w-auto relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shrink-0 shadow-md ring-2 ring-amber-300/60">
+                      ★
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                          {isLockedForUser ? `مسابقة قادمة مجدولة (${selectedQuiz.date})` : 'اليوم الرئيسي الحصري'}
+                        </span>
+                        <h3 className="font-black text-white text-base sm:text-lg tracking-tight">
+                          {selectedQuiz.dayLabel || `اليوم ${selectedQuiz.dayNumber}`}: {selectedQuiz.bookName} (الأصحاح {selectedQuiz.chapterNumber})
+                        </h3>
+                      </div>
+                      <p className="text-xs sm:text-sm text-stone-300 font-medium leading-relaxed">
+                        {isLockedForUser
+                          ? `هذا الأصحاح ومسابقته مغلقان حالياً حتى حلول تاريخ ${selectedQuiz.date} بتوقيت مصر 🇪🇬، وسيصبح حينها هو اليوم الرئيسي الحصري تلقائياً.`
+                          : 'اقرأ أو استمع لأصحاح اليوم بوضوح، ثم اضغط على زر حل الأسئلة لتسجيل درجاتك في لوحة الشرف اليومية.'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs sm:text-sm text-stone-300 font-medium leading-relaxed">
-                    اقرأ أو استمع لأصحاح اليوم بوضوح، ثم اضغط على زر حل الأسئلة لتسجيل درجاتك في لوحة الشرف اليومية.
-                  </p>
-                </div>
-              </div>
 
-              <button
-                onClick={() => {
-                  if (!currentUser) {
-                    setIsAuthModalOpen(true);
-                  } else {
-                    setCurrentTab('quiz');
-                  }
-                }}
-                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl sm:rounded-2xl text-xs sm:text-sm shadow-lg transition-all transform active:scale-95 cursor-pointer whitespace-nowrap text-center relative z-10 shrink-0"
-              >
-                {isCurrentQuizSolved ? 'مراجعة حل الأسئلة ✓' : (currentUser ? 'الانتقال لحل مسابقة اليوم ➔' : 'تسجيل الدخول وبدء المسابقة ➔')}
-              </button>
-            </div>
+                  {isLockedForUser ? (
+                    <div className="w-full sm:w-auto px-6 py-3.5 bg-stone-800 border border-amber-500/40 text-amber-300 font-black rounded-xl sm:rounded-2xl text-xs sm:text-sm shadow-inner whitespace-nowrap text-center relative z-10 shrink-0">
+                      مغلق حتى حلول تاريخ المسابقة 🔒
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!currentUser) {
+                          setIsAuthModalOpen(true);
+                        } else {
+                          setCurrentTab('quiz');
+                        }
+                      }}
+                      className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl sm:rounded-2xl text-xs sm:text-sm shadow-lg transition-all transform active:scale-95 cursor-pointer whitespace-nowrap text-center relative z-10 shrink-0"
+                    >
+                      {isCurrentQuizSolved ? 'مراجعة حل الأسئلة ✓' : (currentUser ? 'الانتقال لحل مسابقة اليوم ➔' : 'تسجيل الدخول وبدء المسابقة ➔')}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             <ChapterReader
               quiz={selectedQuiz}
@@ -212,6 +227,9 @@ export default function App() {
               }}
               isSolved={isCurrentQuizSolved}
               score={currentSubmission?.score}
+              currentUser={currentUser}
+              onGoToTodayQuiz={() => setSelectedQuiz(StorageService.getMainTodayQuiz())}
+              onGoToPreviousDays={() => setCurrentTab('previous')}
             />
           </div>
         )}

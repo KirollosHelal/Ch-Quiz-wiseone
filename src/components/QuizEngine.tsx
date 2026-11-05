@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, XCircle, Award, AlertCircle, ArrowRight, ArrowLeft, RefreshCw, Send, HelpCircle, Check, Sparkles } from 'lucide-react';
+import { CheckCircle2, XCircle, Award, AlertCircle, ArrowRight, ArrowLeft, RefreshCw, Send, HelpCircle, Check, Sparkles, Lock, ShieldAlert } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DailyQuiz, Question, User, UserQuizSubmission } from '../types';
 import { SeniorSettings, StorageService } from '../services/storage';
@@ -21,6 +21,40 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   onGoToLeaderboard,
   onRequireAuth,
 }) => {
+  const isFutureLocked = StorageService.isQuizLockedFuture(quiz.date);
+  const isAdmin = currentUser?.role === 'admin';
+
+  // If this quiz is in the future and user is not an admin, block solving
+  if (isFutureLocked && !isAdmin) {
+    return (
+      <div className="max-w-2xl mx-auto bg-white rounded-3xl p-6 sm:p-12 border-2 border-amber-300 shadow-xl text-center space-y-6">
+        <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-md ring-4 ring-amber-200">
+          <Lock className="w-10 h-10 text-amber-800" />
+        </div>
+        <div className="space-y-2">
+          <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-xs">
+            مسابقة مغلقة 🔒
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-stone-900">
+            مسابقة {quiz.bookName} (الأصحاح {quiz.chapterNumber}) غير متاحة للحل حالياً
+          </h2>
+          <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
+            هذه المسابقة مجدولة لتاريخ <strong className="font-mono text-amber-900 font-bold">{quiz.date}</strong>. لا يمكن بدء حل الأسئلة إلا بعد بداية هذا اليوم بحسب توقيت جمهورية مصر العربية 🇪🇬.
+          </p>
+        </div>
+        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-xs text-amber-950 font-medium">
+          «لِكُلِّ شَيْءٍ زَمَانٌ، وَلِكُلِّ أَمْرٍ تَحْتَ السَّمَاوَاتِ وَقْتٌ» (جامعة 3: 1)
+        </div>
+        <button
+          onClick={onBackToReading}
+          className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-sm shadow-md transition-all cursor-pointer"
+        >
+          العودة للأصحاح ➔
+        </button>
+      </div>
+    );
+  }
+
   // Existing submission check
   const existingSub = currentUser?.submissions?.find(s => s.quizId === quiz.id);
 
