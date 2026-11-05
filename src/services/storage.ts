@@ -322,16 +322,16 @@ export const StorageService = {
     if (userIndex === -1) return;
 
     const user = users[userIndex];
-    const existingSubIndex = user.submissions.findIndex(s => s.quizId === submission.quizId);
-
-    if (existingSubIndex >= 0) {
-      user.submissions[existingSubIndex] = submission;
-    } else {
-      user.submissions.push(submission);
-      user.quizzesSolved += 1;
-      user.currentStreak += 1;
-      user.totalPoints += submission.score;
+    // Strictly prevent re-solving or overwriting: only the first submission counts
+    const alreadySolved = user.submissions.some(s => s.quizId === submission.quizId);
+    if (alreadySolved) {
+      return;
     }
+
+    user.submissions.push(submission);
+    user.quizzesSolved += 1;
+    user.currentStreak += 1;
+    user.totalPoints += submission.score;
 
     this.saveUsers(users);
   },

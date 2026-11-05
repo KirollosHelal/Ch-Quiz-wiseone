@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, XCircle, Award, AlertCircle, ArrowRight, ArrowLeft, RefreshCw, Send, HelpCircle, Check, Sparkles, Lock, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, XCircle, Award, AlertCircle, ArrowRight, ArrowLeft, Send, HelpCircle, Check, Sparkles, Lock, ShieldAlert } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DailyQuiz, Question, User, UserQuizSubmission } from '../types';
 import { SeniorSettings, StorageService } from '../services/storage';
@@ -155,11 +155,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       return;
     }
 
+    // If already solved, do not allow re-calculating or modifying
+    if (existingSub) {
+      setSubmissionResult(existingSub);
+      setIsSubmitted(true);
+      return;
+    }
+
     const result = calculateResults();
     setSubmissionResult(result);
     setIsSubmitted(true);
 
-    // Save to storage
+    // Save to storage (only first attempt is saved)
     StorageService.submitQuiz(currentUser.id, result);
 
     // Launch celebratory confetti
@@ -173,13 +180,6 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     } catch {
       // safe fallback
     }
-  };
-
-  const handleRetake = () => {
-    setAnswers({});
-    setIsSubmitted(false);
-    setSubmissionResult(null);
-    setCurrentStepIndex(0);
   };
 
   // If already submitted and showing results
@@ -204,6 +204,12 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
             <span className="text-3xl font-extrabold text-amber-900 font-mono">
               {submissionResult.score} / {submissionResult.maxScore}
             </span>
+          </div>
+
+          {/* Single attempt fairness lock notice */}
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 sm:p-3.5 flex items-center justify-center gap-2 text-amber-950 font-bold text-xs sm:text-sm max-w-xl mx-auto">
+            <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>تم اعتماد إجابتك من المحاولة الأولى بنجاح. لا يمكن إعادة حل المسابقة لضمان عدالة ونزاهة لوحة الشرف.</span>
           </div>
 
           <p className="text-xs text-stone-500">
@@ -314,27 +320,17 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-stone-200">
           <button
             onClick={onBackToReading}
-            className="w-full sm:w-auto px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl transition-colors cursor-pointer text-sm"
+            className="w-full sm:w-auto px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl transition-colors cursor-pointer text-sm flex items-center justify-center gap-2"
           >
-            ← العودة لقراءة الأصحاح
+            <span>← العودة لقراءة الأصحاح</span>
           </button>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              onClick={handleRetake}
-              className="flex-1 sm:flex-initial px-5 py-3 border border-stone-300 hover:bg-stone-100 text-stone-700 font-medium rounded-xl transition-colors cursor-pointer text-sm flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>إعادة الحل</span>
-            </button>
-
-            <button
-              onClick={onGoToLeaderboard}
-              className="flex-1 sm:flex-initial px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer text-sm"
-            >
-              عرض لوحة الشرف 🏆
-            </button>
-          </div>
+          <button
+            onClick={onGoToLeaderboard}
+            className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer text-sm flex items-center justify-center gap-2"
+          >
+            <span>عرض لوحة الشرف 🏆</span>
+          </button>
         </div>
       </div>
     );
