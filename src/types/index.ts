@@ -118,4 +118,7 @@ export interface DatabaseConfig {
   isConnected?: boolean;
   lastChecked?: string;
   tablePrefix?: string;
+  syncMode?: 'direct' | 'bridge';
+  bridgeUrl?: string;
+  bridgeSecret?: string;
 }

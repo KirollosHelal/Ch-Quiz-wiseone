@@ -3,6 +3,7 @@ import { BookOpen, Sparkles, Heart, CheckCircle2, ChevronDown, Bookmark } from '
 import { DailyQuiz } from '../types';
 import { SeniorSettings } from '../services/storage';
 import { AudioPlayer } from './AudioPlayer';
+import headerBgImage from '../assets/images/coptic_bible_header_1792934497575.jpg';
 
 interface ChapterReaderProps {
   quiz: DailyQuiz;
@@ -32,17 +33,17 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Chapter Banner & Meta with guaranteed dark background and crisp, high-contrast readable text */}
-      <div className="relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl border border-amber-900/60 overflow-hidden min-h-[240px] flex flex-col justify-end w-full bg-stone-950">
+      <div className="isolate relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl border-2 border-amber-600/50 overflow-hidden min-h-[240px] flex flex-col justify-end w-full bg-stone-950">
         {/* Background photo with high-fidelity scrim */}
         <img
-          src="/src/assets/images/coptic_bible_header_1792934497575.jpg"
+          src={headerBgImage}
           alt="الكتاب المقدس المفتوح في الكنيسة القبطية"
           referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover object-center -z-10 opacity-60"
+          className="absolute inset-0 w-full h-full object-cover object-center z-0 opacity-40 mix-blend-luminosity"
         />
         {/* Dual dark scrims ensuring 100% dark background regardless of image rendering or network */}
-        <div className="absolute inset-0 bg-stone-950/85 -z-10" />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/90 to-stone-900/80 -z-10" />
+        <div className="absolute inset-0 bg-stone-950/85 z-0" />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/95 to-stone-900/90 z-0" />
 
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-2.5 flex-wrap">

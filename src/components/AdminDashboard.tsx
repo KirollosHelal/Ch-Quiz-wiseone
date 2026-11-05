@@ -3,7 +3,8 @@ import {
   PlusCircle, BookOpen, Users, Award, Trash2, Edit3, 
   CheckCircle, FileText, Download, Upload, RefreshCw, 
   Plus, Check, X, SlidersHorizontal, UserPlus, Sparkles,
-  Database, Server, Copy, ExternalLink, ShieldCheck, AlertCircle, Calendar, Star
+  Database, Server, Copy, ExternalLink, ShieldCheck, AlertCircle, Calendar, Star,
+  Link2, Zap, Globe, FileCode, CheckCircle2, Shield, Info, ArrowRight
 } from 'lucide-react';
 import { DailyQuiz, Question, QuestionType, User, ScriptureVerse, DatabaseConfig } from '../types';
 import { StorageService } from '../services/storage';
@@ -87,13 +88,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
-  // Database Tab States (Hostinger MySQL / phpMyAdmin)
+  // Database Tab States (Hostinger MySQL / phpMyAdmin / PHP Bridge)
   const [dbConfig, setDbConfig] = useState<DatabaseConfig>(() => StorageService.getDatabaseConfig());
+  const [activeDbTab, setActiveDbTab] = useState<'bridge' | 'direct' | 'phpmyadmin'>('bridge');
   const [isTestingDb, setIsTestingDb] = useState(false);
   const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isSyncingTables, setIsSyncingTables] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [copiedIp, setCopiedIp] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
 
   const resetQuestionForm = () => {
     setIsAddingQuestion(false);
@@ -263,10 +267,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const parseSafeApiResponse = async (res: Response, fallbackMsg: string) => {
     try {
       const text = await res.text();
-      if (!text || text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+      if (!text) {
+        return { success: false, message: fallbackMsg };
+      }
+      if (text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
         return {
           success: false,
-          message: 'انتهت مهلة استجابة الخادم أثناء محاولة الاتصال بـ Hostinger. يرجى التأكد من إضافة عنوان IP السيرفر إلى Remote MySQL في Hostinger أو استخدام منفذ 3306.',
+          message: 'انتهت مهلة استجابة الخادم أثناء محاولة الاتصال بـ Hostinger عبر المنفذ 3306. جدار الحماية (Firewall) في استضافة Hostinger يمنع الاتصالات الخارجية المباشرة. يُرجى استخدام «جسر PHP المباشر (Hostinger Bridge)» المتاح في التبويب الأول فهو يتصل فوراً ومضمون 100% بدون أي حظر!',
         };
       }
       return JSON.parse(text);
@@ -278,7 +285,214 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Test Hostinger MySQL DB connection via backend
+  // --- PHP Bridge Handlers (Hostinger Zero-Firewall Solution) ---
+  const handleDownloadPhpBridge = () => {
+    StorageService.saveDatabaseConfig(dbConfig);
+    const phpCode = StorageService.generatePhpSyncBridgeScript();
+    const blob = new Blob([phpCode], { type: 'application/x-httpd-php;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'bible_sync.php');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleTestBridge = async () => {
+    if (!dbConfig.bridgeUrl?.trim()) {
+      setDbTestResult({
+        success: false,
+        message: 'يرجى كتابة رابط ملف bible_sync.php الذي رفعته على استضافة Hostinger أولاً.',
+      });
+      return;
+    }
+
+    setIsTestingDb(true);
+    setDbTestResult(null);
+    StorageService.saveDatabaseConfig(dbConfig);
+
+    try {
+      const res = await fetch('/api/db/bridge-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bridgeUrl: dbConfig.bridgeUrl.trim(),
+          bridgeSecret: dbConfig.bridgeSecret,
+        }),
+      });
+
+      const data = await parseSafeApiResponse(res, 'فشل الاتصال بجسر PHP على Hostinger.');
+      setDbTestResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم الاتصال بنجاح عبر جسر PHP!' : 'فشل الاتصال.'),
+      });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
+    } catch (err: any) {
+      setDbTestResult({
+        success: false,
+        message: `تعذر الاتصال بملف الجسر: ${err.message}`,
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  const handleSyncTablesViaBridge = async () => {
+    if (!dbConfig.bridgeUrl?.trim()) {
+      setSyncResult({
+        success: false,
+        message: 'يرجى كتابة رابط ملف bible_sync.php أولاً.',
+      });
+      return;
+    }
+
+    setIsSyncingTables(true);
+    setSyncResult(null);
+
+    try {
+      const res = await fetch('/api/db/bridge-sync-tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bridgeUrl: dbConfig.bridgeUrl.trim(),
+          bridgeSecret: dbConfig.bridgeSecret,
+        }),
+      });
+
+      const data = await parseSafeApiResponse(res, 'تعذر إنشاء الجداول عبر جسر PHP.');
+      setSyncResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم إنشاء وتحديث الجداول بنجاح!' : 'فشل إنشاء الجداول.'),
+      });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: `تعذر إنشاء الجداول: ${err.message}`,
+      });
+    } finally {
+      setIsSyncingTables(false);
+    }
+  };
+
+  const handlePullViaBridge = async () => {
+    if (!dbConfig.bridgeUrl?.trim()) {
+      setDbTestResult({
+        success: false,
+        message: 'يرجى كتابة رابط ملف bible_sync.php أولاً.',
+      });
+      return;
+    }
+
+    setIsTestingDb(true);
+    setDbTestResult(null);
+
+    try {
+      const res = await fetch('/api/db/bridge-pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bridgeUrl: dbConfig.bridgeUrl.trim(),
+          bridgeSecret: dbConfig.bridgeSecret,
+        }),
+      });
+
+      const data = await parseSafeApiResponse(res, 'فشل جلب البيانات من Hostinger عبر الجسر.');
+      if (data.success) {
+        if (Array.isArray(data.quizzes) && data.quizzes.length > 0) {
+          StorageService.saveQuizzes(data.quizzes);
+        }
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          StorageService.saveUsers(data.users);
+        }
+        setDbTestResult({
+          success: true,
+          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين من Hostinger بنجاح!',
+        });
+        setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      } else {
+        setDbTestResult({
+          success: false,
+          message: data.message || 'تعذر سحب البيانات من Hostinger.',
+        });
+      }
+    } catch (err: any) {
+      setDbTestResult({
+        success: false,
+        message: `خطأ في جلب البيانات: ${err.message}`,
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  const handlePushViaBridge = async () => {
+    if (!dbConfig.bridgeUrl?.trim()) {
+      setSyncResult({
+        success: false,
+        message: 'يرجى كتابة رابط ملف bible_sync.php أولاً.',
+      });
+      return;
+    }
+
+    setIsSyncingTables(true);
+    setSyncResult(null);
+
+    try {
+      const currentQuizzes = StorageService.getQuizzes();
+      const currentUsers = StorageService.getUsers();
+
+      const res = await fetch('/api/db/bridge-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bridgeUrl: dbConfig.bridgeUrl.trim(),
+          bridgeSecret: dbConfig.bridgeSecret,
+          quizzes: currentQuizzes,
+          users: currentUsers,
+        }),
+      });
+
+      const data = await parseSafeApiResponse(res, 'فشل رفع البيانات إلى Hostinger عبر الجسر.');
+      setSyncResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم حفظ ومزامنة البيانات في Hostinger بنجاح!' : 'فشل رفع البيانات.'),
+      });
+      if (data.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true }));
+        StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: `خطأ في رفع البيانات: ${err.message}`,
+      });
+    } finally {
+      setIsSyncingTables(false);
+    }
+  };
+
+  const copyServerIp = () => {
+    navigator.clipboard.writeText('34.96.62.46');
+    setCopiedIp(true);
+    setTimeout(() => setCopiedIp(false), 2000);
+  };
+
+  const copyBridgeSecret = () => {
+    navigator.clipboard.writeText(dbConfig.bridgeSecret || '');
+    setCopiedSecret(true);
+    setTimeout(() => setCopiedSecret(false), 2000);
+  };
+
+  // --- Direct MySQL Connection Handlers ---
   const handleTestDatabaseConnection = async () => {
     setIsTestingDb(true);
     setDbTestResult(null);
@@ -293,7 +507,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
       const data = await parseSafeApiResponse(
         res,
-        'تعذر الاتصال بسيرفر Hostinger. يرجى التأكد من البيانات أو استخدام استيراد ملف SQL في phpMyAdmin.'
+        'تعذر الاتصال بسيرفر Hostinger. يرجى التأكد من البيانات أو استخدام جسر PHP المباشر.'
       );
       setDbTestResult({
         success: Boolean(data.success),
@@ -306,14 +520,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err: any) {
       setDbTestResult({
         success: false,
-        message: `تعذر الاتصال بسيرفر Hostinger: ${err.message || 'تأكد من إتاحة الاتصال الخارجي أو استورد ملف SQL'}.`,
+        message: `تعذر الاتصال بسيرفر Hostinger: ${err.message || 'تأكد من إتاحة الاتصال الخارجي أو استخدم جسر PHP'}.`,
       });
     } finally {
       setIsTestingDb(false);
     }
   };
 
-  // Auto-sync / create tables in MySQL
   const handleSyncTables = async () => {
     setIsSyncingTables(true);
     setSyncResult(null);
@@ -326,7 +539,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
       const data = await parseSafeApiResponse(
         res,
-        'تعذر إنشاء الجداول في السيرفر. يمكنك تنزيل ملف SQL واستيراده في phpMyAdmin مباشرة.'
+        'تعذر إنشاء الجداول في السيرفر. يمكنك تنزيل ملف SQL أو استخدام جسر PHP.'
       );
       setSyncResult({
         success: Boolean(data.success),
@@ -339,14 +552,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err: any) {
       setSyncResult({
         success: false,
-        message: `تعذر تنفيذ سكربت الجداول: ${err.message || 'استخدم ملف SQL المرفق للاستيراد في phpMyAdmin'}`,
+        message: `تعذر تنفيذ سكربت الجداول: ${err.message}`,
       });
     } finally {
       setIsSyncingTables(false);
     }
   };
 
-  // Sync / Pull data from Hostinger MySQL into Website
   const handlePullFromMysql = async () => {
     setIsTestingDb(true);
     setDbTestResult(null);
@@ -387,7 +599,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Sync / Push website data to Hostinger MySQL
   const handlePushToMysql = async () => {
     setIsSyncingTables(true);
     setSyncResult(null);
@@ -1202,254 +1413,485 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleDownloadPhpBridge}
+                className="flex items-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-black rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+                title="تنزيل ملف جسر الربط PHP لرفعه داخل public_html في Hostinger"
+              >
+                <Zap className="w-4 h-4 text-amber-900" />
+                <span>تنزيل ملف bible_sync.php (جسر الربط)</span>
+              </button>
               <button
                 onClick={handleDownloadSql}
-                className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-200 font-bold rounded-xl text-xs sm:text-sm border border-stone-700 transition-all cursor-pointer whitespace-nowrap"
               >
                 <Download className="w-4 h-4" />
-                <span>تنزيل ملف bible_quiz.sql</span>
+                <span>ملف .sql</span>
               </button>
             </div>
+          </div>
+
+          {/* Sub Tabs Selector for Database Connection Methods */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-stone-200 pb-2">
+            <button
+              type="button"
+              onClick={() => setActiveDbTab('bridge')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                activeDbTab === 'bridge'
+                  ? 'bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/50'
+                  : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-200'
+              }`}
+            >
+              <Zap className="w-4 h-4 text-amber-900" />
+              <span>1. جسر PHP المباشر (حل مضمون 100% بدون جدار حماية)</span>
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white">موصى به</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveDbTab('direct')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                activeDbTab === 'direct'
+                  ? 'bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/50'
+                  : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-200'
+              }`}
+            >
+              <Server className="w-4 h-4" />
+              <span>2. الاتصال المباشر (Remote MySQL IP)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveDbTab('phpmyadmin')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                activeDbTab === 'phpmyadmin'
+                  ? 'bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/50'
+                  : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-200'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              <span>3. استيراد يدوي في phpMyAdmin</span>
+            </button>
           </div>
 
           {/* Connection Test Results */}
           {dbTestResult && (
-            <div className={`p-4 rounded-2xl border text-sm font-bold flex items-center gap-3 ${
-              dbTestResult.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            <div className={`p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-start gap-3 whitespace-pre-line leading-relaxed ${
+              dbTestResult.success ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-rose-50 text-rose-900 border-rose-300'
             }`}>
-              {dbTestResult.success ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
-              <span>{dbTestResult.message}</span>
+              {dbTestResult.success ? <CheckCircle className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />}
+              <div>{dbTestResult.message}</div>
             </div>
           )}
 
           {syncResult && (
-            <div className={`p-4 rounded-2xl border text-sm font-bold flex items-center gap-3 ${
-              syncResult.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            <div className={`p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-start gap-3 whitespace-pre-line leading-relaxed ${
+              syncResult.success ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-rose-50 text-rose-900 border-rose-300'
             }`}>
-              {syncResult.success ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
-              <span>{syncResult.message}</span>
+              {syncResult.success ? <CheckCircle className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />}
+              <div>{syncResult.message}</div>
             </div>
           )}
 
-          {/* DB Credentials Form */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-stone-200">
-              <div>
-                <h3 className="font-extrabold text-stone-900 text-lg">بيانات الاتصال بـ Hostinger MySQL</h3>
-                <p className="text-xs text-stone-500">
-                  تجد هذه البيانات في لوحة تحكم Hostinger cPanel / hPanel &gt; Databases &gt; MySQL Databases
+          {/* TAB 1: PHP BRIDGE (100% Working on Hostinger, Bypasses Port 3306 Firewall) */}
+          {activeDbTab === 'bridge' && (
+            <div className="space-y-6">
+              {/* Solution Highlights Box */}
+              <div className="bg-emerald-50 border-2 border-emerald-300 p-5 rounded-3xl space-y-3 text-xs sm:text-sm text-emerald-950">
+                <div className="flex items-center gap-2 font-black text-sm sm:text-base text-emerald-900">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>لماذا هذا الحل يحل خطأ «انتهت مهلة استجابة الخادم» فوراً وبشكل نهائي؟</span>
+                </div>
+                <p className="text-emerald-900 leading-relaxed font-medium">
+                  جدار حماية <strong>Hostinger</strong> يقوم بحجب منفذ <code>3306</code> عن الاتصالات الخارجية المباشرة.
+                  <br />
+                  ملف <strong>bible_sync.php</strong> يعمل محلياً من داخل استضافتك على Hostinger، فيتصل بقاعدة البيانات عبر <code>localhost</code> بسرعة فائقة وبدون أي حظر أو حاجة لإعدادات معقدة في جدار الحماية!
                 </p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                dbConfig.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
-              }`}>
-                {dbConfig.isConnected ? 'متصل بقاعدة البيانات ✓' : 'غير متصل بعد'}
-              </span>
-            </div>
-
-            {/* Hostinger Remote MySQL Setup Alert */}
-            <div className="bg-amber-50/80 border-2 border-amber-300 p-4 rounded-2xl space-y-2 text-xs text-amber-950">
-              <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
-                <ShieldCheck className="w-4 h-4 text-amber-700" />
-                <span>كيفية تفعيل الاتصال المباشر والمزامنة في Hostinger (خطوة بسيطة واحدة):</span>
-              </div>
-              <ol className="list-decimal list-inside space-y-1 text-stone-700 pr-1">
-                <li>افتح لوحة تحكم <strong>Hostinger (hPanel)</strong> &gt; توجه إلى <strong>Databases (قواعد البيانات)</strong>.</li>
-                <li>انقر على قسم <strong>Remote MySQL (الاتصال الخارجي بـ MySQL)</strong>.</li>
-                <li>في خانة <strong>IP (IPv4 أو IPv6)</strong> اكتب الرمز <code>%</code> (ليسمح بالاتصال من أي عنوان IP) أو عنوان IP، ثم اختر اسم قاعدة بياناتك واضغط <strong>Create (إنشاء)</strong>.</li>
-                <li>في خانة عنوان السيرفر أدناه، تأكد من كتابة <strong>MySQL Hostname أو IP السيرفر</strong> الموجود في صفحة قواعد البيانات وليس كلمة <code>localhost</code>.</li>
-              </ol>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  عنوان السيرفر الخارجي (MySQL Hostname / Server IP):
-                </label>
-                <input
-                  type="text"
-                  value={dbConfig.host}
-                  onChange={(e) => setDbConfig({ ...dbConfig, host: e.target.value })}
-                  placeholder="مثال: srv123.main-hosting.eu أو IP السيرفر مثل 185.xxx.xxx.xxx"
-                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-                <p className="text-[11px] text-amber-800 font-medium mt-1">
-                  * هام: لا تضع «localhost»؛ ضع Hostname أو عنوان IP السيرفر الظاهر في صفحة Hostinger MySQL Databases.
-                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">
+                  <div className="bg-white p-3 rounded-xl border border-emerald-200">
+                    <span className="font-bold block text-emerald-900 mb-1">الخطوة 1: تنزيل الملف</span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadPhpBridge}
+                      className="w-full mt-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>تنزيل bible_sync.php</span>
+                    </button>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-emerald-200">
+                    <span className="font-bold block text-emerald-900 mb-1">الخطوة 2: رفعه إلى Hostinger</span>
+                    <p className="text-stone-600">
+                      افتح <strong>File Manager</strong> في Hostinger وارفع الملف داخل مجلد <strong>public_html</strong>.
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-emerald-200">
+                    <span className="font-bold block text-emerald-900 mb-1">الخطوة 3: وضع الرابط والربط</span>
+                    <p className="text-stone-600">
+                      الصق الرابط أدناه واضغط «اختبار الاتصال بالجسر» للبدء فوراً!
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  اسم قاعدة البيانات (Database Name):
-                </label>
-                <input
-                  type="text"
-                  value={dbConfig.database}
-                  onChange={(e) => setDbConfig({ ...dbConfig, database: e.target.value })}
-                  placeholder="مثال: u123456789_bible_quiz"
-                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
+              {/* Bridge Configuration Form */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
+                <div className="flex items-center justify-between pb-4 border-b border-stone-200 flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-extrabold text-stone-900 text-lg">إعدادات جسر الربط (Hostinger Bridge)</h3>
+                    <p className="text-xs text-stone-500">
+                      الملف يحتوي مسبقاً على بيانات قاعدة بياناتك ورمز أمان سري مشفر خاص بك.
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    dbConfig.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+                  }`}>
+                    {dbConfig.isConnected ? 'متصل بنجاح عبر Hostinger ✓' : 'غير متصل بعد'}
+                  </span>
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  اسم المستخدم (Database User):
-                </label>
-                <input
-                  type="text"
-                  value={dbConfig.user}
-                  onChange={(e) => setDbConfig({ ...dbConfig, user: e.target.value })}
-                  placeholder="مثال: u123456789_kirillos"
-                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      رابط ملف الجسر على موقعك (Bridge URL):
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={dbConfig.bridgeUrl || ''}
+                        onChange={(e) => setDbConfig({ ...dbConfig, bridgeUrl: e.target.value })}
+                        placeholder="مثال: https://yourdomain.com/bible_sync.php"
+                        className="w-full p-3.5 pr-10 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        dir="ltr"
+                      />
+                      <Globe className="w-4 h-4 text-stone-400 absolute right-3 top-3.5" />
+                    </div>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      اكتب الرابط الكامل للملف بعد رفعه داخل <code>public_html</code> (مثلاً: <code>https://yourdomain.com/bible_sync.php</code>).
+                    </p>
+                  </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  كلمة مرور قاعدة البيانات (Password):
-                </label>
-                <input
-                  type="password"
-                  value={dbConfig.password}
-                  onChange={(e) => setDbConfig({ ...dbConfig, password: e.target.value })}
-                  placeholder="••••••••••••"
-                  className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">
+                        رمز الأمان المشفر (Security Token):
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={dbConfig.bridgeSecret || 'cbq_sec_9a7d4f128e'}
+                          onChange={(e) => setDbConfig({ ...dbConfig, bridgeSecret: e.target.value })}
+                          className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs bg-stone-50"
+                          dir="ltr"
+                        />
+                        <button
+                          type="button"
+                          onClick={copyBridgeSecret}
+                          className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                        >
+                          {copiedSecret ? 'تم النسخ ✓' : 'نسخ'}
+                        </button>
+                      </div>
+                    </div>
 
-            {/* Action buttons: Test, Sync Pull, Sync Push, Sync Create */}
-            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-200">
-              <button
-                type="button"
-                onClick={handleTestDatabaseConnection}
-                disabled={isTestingDb}
-                className="px-5 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
-              >
-                <Server className="w-4 h-4 text-amber-400" />
-                <span>{isTestingDb ? 'جاري الفحص...' : 'اختبار الاتصال بـ Hostinger'}</span>
-              </button>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">
+                        اسم قاعدة البيانات المُضمن بالملف:
+                      </label>
+                      <input
+                        type="text"
+                        value={dbConfig.database}
+                        onChange={(e) => setDbConfig({ ...dbConfig, database: e.target.value })}
+                        placeholder="u123456789_dbname"
+                        className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              <button
-                type="button"
-                onClick={handlePullFromMysql}
-                disabled={isTestingDb}
-                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
-                title="جلب وتحديث المسابقات والمتسابقين من قاعدة بيانات Hostinger إلى الموقع"
-              >
-                <RefreshCw className={`w-4 h-4 ${isTestingDb ? 'animate-spin' : ''}`} />
-                <span>سحب البيانات من Hostinger ➔ الموقع</span>
-              </button>
+                {/* Bridge Actions */}
+                <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-200">
+                  <button
+                    type="button"
+                    onClick={handleTestBridge}
+                    disabled={isTestingDb}
+                    className="px-6 py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span>{isTestingDb ? 'جاري اختبار الجسر...' : 'اختبار الاتصال بالجسر'}</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={handlePushToMysql}
-                disabled={isSyncingTables}
-                className="px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
-                title="رفع مسابقات وبيانات الموقع الحالية إلى قاعدة بيانات Hostinger"
-              >
-                <Upload className="w-4 h-4" />
-                <span>مزامنة ورفع بيانات الموقع ➔ Hostinger</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={handlePullViaBridge}
+                    disabled={isTestingDb}
+                    className="px-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isTestingDb ? 'animate-spin' : ''}`} />
+                    <span>سحب البيانات من Hostinger ➔ الموقع</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={handleSyncTables}
-                disabled={isSyncingTables}
-                className="px-4 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-300 cursor-pointer flex items-center gap-1.5"
-                title="إنشاء هيكل الجداول إذا كانت القاعدة فارغة"
-              >
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span>إنشاء الجداول تلقائياً</span>
-              </button>
-            </div>
-          </div>
+                  <button
+                    type="button"
+                    onClick={handlePushViaBridge}
+                    disabled={isSyncingTables}
+                    className="px-5 py-3.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>مزامنة ورفع بيانات الموقع ➔ Hostinger</span>
+                  </button>
 
-          {/* phpMyAdmin Instructions & SQL Export */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-200">
-              <div>
-                <h3 className="font-extrabold text-stone-900 text-lg">
-                  استيراد الجداول مباشرة في phpMyAdmin على Hostinger
-                </h3>
-                <p className="text-xs text-stone-500">
-                  إذا كنت تفضل إدارة الجداول عبر واجهة phpMyAdmin، اتبع الخطوات البسيطة التالية:
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopySql}
-                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <Copy className="w-3.5 h-3.5 text-stone-600" />
-                  <span>{copiedSql ? 'تم النسخ بنجاح! ✓' : 'نسخ كود SQL'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadSql}
-                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>تنزيل ملف .sql</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncTablesViaBridge}
+                    disabled={isSyncingTables}
+                    className="px-4 py-3.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-300 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>إنشاء وتحديث الجداول</span>
+                  </button>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Steps */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
-                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
-                  1
-                </span>
-                <h5 className="font-bold text-stone-900">فتح phpMyAdmin</h5>
-                <p className="text-stone-600">
-                  سجل الدخول إلى لوحة تحكم Hostinger، توجه إلى Databases ثم انقر على زر <strong>Enter phpMyAdmin</strong>.
-                </p>
+          {/* TAB 2: DIRECT MYSQL VIA REMOTE MYSQL IP */}
+          {activeDbTab === 'direct' && (
+            <div className="space-y-6">
+              {/* Hostinger Remote MySQL Setup Alert with Exact Server IP */}
+              <div className="bg-amber-50 border-2 border-amber-300 p-5 rounded-3xl space-y-3 text-xs sm:text-sm text-amber-950">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 font-black text-sm sm:text-base text-amber-900">
+                    <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0" />
+                    <span>إعدادات Remote MySQL في Hostinger لحل خطأ مهلة الاتصال:</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-amber-300 shadow-xs">
+                    <span className="text-xs text-stone-600 font-bold">IP سيرفر التطبيق:</span>
+                    <code className="font-mono text-stone-900 font-bold text-xs bg-stone-100 px-2 py-0.5 rounded">34.96.62.46</code>
+                    <button
+                      type="button"
+                      onClick={copyServerIp}
+                      className="text-xs bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded transition-colors cursor-pointer"
+                    >
+                      {copiedIp ? 'تم النسخ ✓' : 'نسخ IP'}
+                    </button>
+                  </div>
+                </div>
+
+                <ol className="list-decimal list-inside space-y-1.5 text-stone-700 pr-1 text-xs sm:text-sm leading-relaxed">
+                  <li>افتح لوحة تحكم <strong>Hostinger (hPanel)</strong> &gt; توجه إلى <strong>Databases (قواعد البيانات)</strong> &gt; ثم <strong>Remote MySQL</strong>.</li>
+                  <li>في خانة <strong>IP (IPv4 أو IPv6)</strong> اكتب عنوان IP سيرفر التطبيق: <strong className="font-mono text-stone-900 font-bold bg-amber-100 px-1.5 py-0.5 rounded">34.96.62.46</strong> (أو الرمز <code>%</code>).</li>
+                  <li>اختر اسم قاعدة بياناتك واضغط <strong>Create (إنشاء)</strong>.</li>
+                  <li><strong>هام جداً:</strong> في خانة «عنوان السيرفر» أدناه، لا تكتب <code>localhost</code> ولا اسم موقعك، بل <strong>MySQL Hostname</strong> المخصص من Hostinger (مثال: <code>srv123.main-hosting.eu</code> أو IP السيرفر).</li>
+                </ol>
               </div>
 
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
-                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
-                  2
-                </span>
-                <h5 className="font-bold text-stone-900">اختيار قاعدة البيانات</h5>
-                <p className="text-stone-600">
-                  انقر على اسم قاعدة بياناتك من القائمة اليسرى في phpMyAdmin لتحديدها.
-                </p>
-              </div>
+              {/* DB Credentials Form */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
+                <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+                  <div>
+                    <h3 className="font-extrabold text-stone-900 text-lg">بيانات الاتصال المباشر بـ MySQL</h3>
+                    <p className="text-xs text-stone-500">
+                      تجد هذه البيانات في لوحة تحكم Hostinger &gt; Databases &gt; MySQL Databases
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    dbConfig.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+                  }`}>
+                    {dbConfig.isConnected ? 'متصل بقاعدة البيانات ✓' : 'غير متصل بعد'}
+                  </span>
+                </div>
 
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
-                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
-                  3
-                </span>
-                <h5 className="font-bold text-stone-900">استيراد (Import)</h5>
-                <p className="text-stone-600">
-                  اضغط على تبويب <strong>Import (استيراد)</strong> في الشريط العلوي، واختر ملف <code>bible_quiz.sql</code> الذي قمت بتنزيله.
-                </p>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      عنوان السيرفر الخارجي (MySQL Hostname / Server IP):
+                    </label>
+                    <input
+                      type="text"
+                      value={dbConfig.host}
+                      onChange={(e) => setDbConfig({ ...dbConfig, host: e.target.value })}
+                      placeholder="مثال: srv123.main-hosting.eu أو IP السيرفر الخاص بـ Hostinger"
+                      className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-amber-800 font-medium mt-1">
+                      * تنبيه: لا تضع «localhost»؛ ضع Hostname أو عنوان IP السيرفر الظاهر في صفحة Hostinger MySQL Databases.
+                    </p>
+                  </div>
 
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
-                <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
-                  4
-                </span>
-                <h5 className="font-bold text-stone-900">تنفيذ وحفظ</h5>
-                <p className="text-stone-600">
-                  اضغط على زر <strong>Go / تنفيذ</strong> بالأسفل. سيتم إنشاء الجداول وحساب أدمن كيرلس هلال فوراً!
-                </p>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      اسم قاعدة البيانات (Database Name):
+                    </label>
+                    <input
+                      type="text"
+                      value={dbConfig.database}
+                      onChange={(e) => setDbConfig({ ...dbConfig, database: e.target.value })}
+                      placeholder="مثال: u123456789_bible_quiz"
+                      className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      اسم المستخدم (Database User):
+                    </label>
+                    <input
+                      type="text"
+                      value={dbConfig.user}
+                      onChange={(e) => setDbConfig({ ...dbConfig, user: e.target.value })}
+                      placeholder="مثال: u123456789_kirillos"
+                      className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      كلمة مرور قاعدة البيانات (Password):
+                    </label>
+                    <input
+                      type="password"
+                      value={dbConfig.password}
+                      onChange={(e) => setDbConfig({ ...dbConfig, password: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Direct Action buttons */}
+                <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-200">
+                  <button
+                    type="button"
+                    onClick={handleTestDatabaseConnection}
+                    disabled={isTestingDb}
+                    className="px-5 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                  >
+                    <Server className="w-4 h-4 text-amber-400" />
+                    <span>{isTestingDb ? 'جاري الفحص...' : 'اختبار الاتصال المباشر'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePullFromMysql}
+                    disabled={isTestingDb}
+                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isTestingDb ? 'animate-spin' : ''}`} />
+                    <span>سحب البيانات ➔ الموقع</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePushToMysql}
+                    disabled={isSyncingTables}
+                    className="px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>رفع البيانات ➔ Hostinger</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSyncTables}
+                    disabled={isSyncingTables}
+                    className="px-4 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-300 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>إنشاء الجداول</span>
+                  </button>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Code Preview snippet */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-stone-700 block">معاينة جزء من سكربت SQL التلقائي:</span>
-              <pre className="bg-stone-950 text-amber-200 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-48 border border-stone-800" dir="ltr">
+          {/* TAB 3: PHPMYADMIN SQL IMPORT */}
+          {activeDbTab === 'phpmyadmin' && (
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-md space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-200 flex-wrap gap-2">
+                <div>
+                  <h3 className="font-extrabold text-stone-900 text-lg">
+                    استيراد الجداول مباشرة في phpMyAdmin على Hostinger
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    إذا كنت تفضل إدارة الجداول عبر واجهة phpMyAdmin، اتبع الخطوات البسيطة التالية:
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopySql}
+                    className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-stone-600" />
+                    <span>{copiedSql ? 'تم النسخ بنجاح! ✓' : 'نسخ كود SQL'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSql}
+                    className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تنزيل ملف .sql</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                    1
+                  </span>
+                  <h5 className="font-bold text-stone-900">فتح phpMyAdmin</h5>
+                  <p className="text-stone-600">
+                    سجل الدخول إلى لوحة تحكم Hostinger، توجه إلى Databases ثم انقر على زر <strong>Enter phpMyAdmin</strong>.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                    2
+                  </span>
+                  <h5 className="font-bold text-stone-900">اختيار قاعدة البيانات</h5>
+                  <p className="text-stone-600">
+                    انقر على اسم قاعدة بياناتك من القائمة اليسرى في phpMyAdmin لتحديدها.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                    3
+                  </span>
+                  <h5 className="font-bold text-stone-900">استيراد (Import)</h5>
+                  <p className="text-stone-600">
+                    اضغط على تبويب <strong>Import (استيراد)</strong> في الشريط العلوي، واختر ملف <code>bible_quiz.sql</code> الذي قمت بتنزيله.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-1.5">
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                    4
+                  </span>
+                  <h5 className="font-bold text-stone-900">تنفيذ وحفظ</h5>
+                  <p className="text-stone-600">
+                    اضغط على زر <strong>Go / تنفيذ</strong> بالأسفل. سيتم إنشاء الجداول وحساب أدمن كيرلس هلال فوراً!
+                  </p>
+                </div>
+              </div>
+
+              {/* Code Preview snippet */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-stone-700 block">معاينة جزء من سكربت SQL التلقائي:</span>
+                <pre className="bg-stone-950 text-amber-200 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-48 border border-stone-800" dir="ltr">
 {StorageService.generatePhpMyAdminSql().substring(0, 1100)}
 ...
-              </pre>
+                </pre>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

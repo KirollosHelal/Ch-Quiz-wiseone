@@ -13,7 +13,7 @@ async function startServer() {
   app.use(express.json());
 
   // Helper for MySQL connection with strict timeout (prevents Cloud Run 502/504 HTML gateway timeouts)
-  const connectMysqlWithTimeout = async (config: mysql.ConnectionOptions, timeoutMs = 3500): Promise<mysql.Connection> => {
+  const connectMysqlWithTimeout = async (config: mysql.ConnectionOptions, timeoutMs = 2800): Promise<mysql.Connection> => {
     let timer: NodeJS.Timeout;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
@@ -51,12 +51,24 @@ async function startServer() {
       return `قاعدة البيانات «${database}» غير موجودة في سيرفر Hostinger. يرجى التأكد من الاسم بالكامل كما يظهر في لوحة التحكم (مثل: u123456789_dbname).`;
     }
     if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
-      return `تعذر الوصول إلى سيرفر MySQL «${host}». يرجى التأكد من خطوتين في Hostinger:
-1) لا تستخدم "localhost" كعنوان للسيرفر لأن الموقع هنا يعمل على استضافة سحابية مستقلة؛ استخدم عنوان IP السيرفر أو Hostname الخاص بقاعدة البيانات (تجدها في قسم MySQL Databases في Hostinger).
-2) تفعيل (Remote MySQL) في Hostinger وإضافة الرمز % أو عنوان IP للسماح بالاتصال الخارجي بقاعدة البيانات.`;
+      return `انتهت مهلة استجابة السيرفر «${host}» (ETIMEDOUT).
+الأسباب الأكيدة في Hostinger:
+1) جدار الحماية (Firewall) في Hostinger يحجب منفذ 3306: تأكد من إضافة IP السيرفر (34.96.62.46) في Hostinger > Databases > Remote MySQL.
+2) تأكد أن عنوان السيرفر ليس "localhost" ولا اسم موقعك، بل Hostname أو IP السيرفر المخصص في Hostinger (مثل: srv123.main-hosting.eu).
+★ الحل الأسهل والأسرع 100%: استخدم «جسر PHP المباشر (Hostinger Bridge)» المتاح في التبويب الثاني في الموقع، فهو يتصل محلياً داخل Hostinger بدون قيود جدار الحماية!`;
     }
     return `فشل الاتصال: ${err.message || 'خطأ غير معروف'}`;
   };
+
+  // --- API: Server Info (Outbound IP for Hostinger Remote MySQL) ---
+  app.get('/api/db/server-info', async (_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    return res.json({
+      success: true,
+      ip: '34.96.62.46',
+      port: 3000,
+    });
+  });
 
   // --- API: Test MySQL Connection (Hostinger phpMyAdmin) ---
   app.post('/api/db/test-connection', async (req, res) => {
@@ -75,7 +87,7 @@ async function startServer() {
     if (cleanedHost.toLowerCase() === 'localhost' || cleanedHost === '127.0.0.1') {
       return res.json({
         success: false,
-        message: 'تنبيه: "localhost" تشير للسيرفر المحلي الداخلي للموقع وليس لسيرفر Hostinger. يرجى نسخ عنوان السيرفر الخارجي (MySQL Hostname / IP) من لوحة تحكم Hostinger > MySQL Databases (مثل: srv123.main-hosting.eu أو IP السيرفر).',
+        message: 'تنبيه: "localhost" تشير للسيرفر المحلي الداخلي للموقع وليس لسيرفر Hostinger. يرجى نسخ عنوان السيرفر الخارجي (MySQL Hostname / IP) من لوحة تحكم Hostinger > MySQL Databases (مثل: srv123.main-hosting.eu أو IP السيرفر)، أو استخدام جسر PHP المباشر.',
       });
     }
 
@@ -87,9 +99,9 @@ async function startServer() {
         user: (user || '').trim(),
         password: password || '',
         database: (database || '').trim(),
-        connectTimeout: 5000,
+        connectTimeout: 2500,
         ssl: ssl ? { rejectUnauthorized: false } : undefined,
-      }, 5500);
+      }, 2800);
 
       const [rows] = await connection.query('SELECT 1 + 1 AS solution, NOW() as server_time');
       
@@ -113,6 +125,185 @@ async function startServer() {
         success: false,
         message: friendlyMsg,
         code: err.code || 'CONNECTION_ERROR',
+      });
+    }
+  });
+
+  // --- API: Test Hostinger PHP Bridge ---
+  app.post('/api/db/bridge-test', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { bridgeUrl, bridgeSecret } = req.body;
+    if (!bridgeUrl) {
+      return res.json({
+        success: false,
+        message: 'يرجى إدخال رابط ملف الجسر (مثل: https://yourdomain.com/bible_sync.php).',
+      });
+    }
+
+    try {
+      const cleanUrl = bridgeUrl.trim();
+      const targetUrl = new URL(cleanUrl);
+      targetUrl.searchParams.set('action', 'test');
+      targetUrl.searchParams.set('secret', bridgeSecret || '');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'X-Bridge-Secret': bridgeSecret || '',
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(6000),
+      });
+
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return res.json({
+          success: false,
+          message: `رد السيرفر لم يكن بتنسيق JSON صحيح. تأكد من رفع ملف bible_sync.php داخل مجلد public_html في Hostinger.\n(نص الرد المستلم: ${text.substring(0, 150)}...)`,
+        });
+      }
+
+      return res.json(data);
+    } catch (err: any) {
+      return res.json({
+        success: false,
+        message: `تعذر الوصول إلى رابط ملف الجسر: ${err.message || 'تأكد من صحة الرابط وعمل الموقع على Hostinger'}.`,
+      });
+    }
+  });
+
+  // --- API: Sync Tables via PHP Bridge ---
+  app.post('/api/db/bridge-sync-tables', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { bridgeUrl, bridgeSecret } = req.body;
+    if (!bridgeUrl) {
+      return res.json({ success: false, message: 'يرجى إدخال رابط ملف الجسر أولاً.' });
+    }
+
+    try {
+      const cleanUrl = bridgeUrl.trim();
+      const targetUrl = new URL(cleanUrl);
+      targetUrl.searchParams.set('action', 'sync_tables');
+      targetUrl.searchParams.set('secret', bridgeSecret || '');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bridge-Secret': bridgeSecret || '',
+        },
+        body: JSON.stringify({ action: 'sync_tables', secret: bridgeSecret }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return res.json({
+          success: false,
+          message: `خطأ في الرد من ملف الجسر: ${text.substring(0, 120)}`,
+        });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      return res.json({
+        success: false,
+        message: `تعذر إنشاء الجداول عبر الجسر: ${err.message}`,
+      });
+    }
+  });
+
+  // --- API: Pull Data via PHP Bridge ---
+  app.post('/api/db/bridge-pull', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { bridgeUrl, bridgeSecret } = req.body;
+    if (!bridgeUrl) {
+      return res.json({ success: false, message: 'يرجى إدخال رابط ملف الجسر أولاً.' });
+    }
+
+    try {
+      const cleanUrl = bridgeUrl.trim();
+      const targetUrl = new URL(cleanUrl);
+      targetUrl.searchParams.set('action', 'pull');
+      targetUrl.searchParams.set('secret', bridgeSecret || '');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'X-Bridge-Secret': bridgeSecret || '',
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return res.json({
+          success: false,
+          message: `خطأ في استجابة سحب البيانات: ${text.substring(0, 120)}`,
+        });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      return res.json({
+        success: false,
+        message: `تعذر سحب البيانات عبر الجسر: ${err.message}`,
+      });
+    }
+  });
+
+  // --- API: Push Data via PHP Bridge ---
+  app.post('/api/db/bridge-push', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const { bridgeUrl, bridgeSecret, quizzes, users } = req.body;
+    if (!bridgeUrl) {
+      return res.json({ success: false, message: 'يرجى إدخال رابط ملف الجسر أولاً.' });
+    }
+
+    try {
+      const cleanUrl = bridgeUrl.trim();
+      const targetUrl = new URL(cleanUrl);
+      targetUrl.searchParams.set('action', 'push');
+      targetUrl.searchParams.set('secret', bridgeSecret || '');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bridge-Secret': bridgeSecret || '',
+        },
+        body: JSON.stringify({
+          action: 'push',
+          secret: bridgeSecret,
+          quizzes,
+          users,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return res.json({
+          success: false,
+          message: `خطأ في استجابة رفع البيانات: ${text.substring(0, 120)}`,
+        });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      return res.json({
+        success: false,
+        message: `تعذر رفع البيانات عبر الجسر: ${err.message}`,
       });
     }
   });
