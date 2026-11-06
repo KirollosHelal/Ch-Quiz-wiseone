@@ -31,19 +31,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand Wordmark & Coptic Cross */}
           <button
             onClick={() => onSelectTab('today')}
-            className="flex items-center gap-2 sm:gap-2.5 text-base sm:text-xl font-black tracking-tight text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2.5 text-sm sm:text-lg font-black tracking-tight text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap shrink cursor-pointer min-w-0"
           >
             <img
               src="/src/assets/images/coptic_cross_art_1792934497602.jpg"
               alt="صليب قبطي ذهبي"
               referrerPolicy="no-referrer"
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-amber-400/60 shadow-xs"
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-amber-400/60 shadow-xs shrink-0"
             />
-            <span className="truncate max-w-[170px] sm:max-w-none">مسابقة الكتاب المقدس القبطية</span>
+            <span className="hidden sm:inline">مسابقة الكتاب المقدس القبطية</span>
+            <span className="inline sm:hidden font-black text-amber-400 text-sm truncate">مسابقة الإنجيل</span>
           </button>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-stone-300">
+          <nav className="hidden md:flex items-center gap-4 lg:gap-5 text-sm font-medium text-stone-300">
             <button
               onClick={() => onSelectTab('today')}
               className={`hover:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer py-1 ${
@@ -98,35 +99,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               <>
                 <button
                   onClick={onOpenProfile}
-                  className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+                  className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink cursor-pointer flex items-center gap-1 sm:gap-1.5 active:scale-95"
                   title="فتح الملف الشخصي وسجل الإجابات"
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-700" />
-                  <span className="truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">{currentUser.fullName}</span>
-                  <span className="font-mono text-amber-950 bg-amber-300/80 px-1 py-0.2 rounded text-[11px] sm:text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-700 shrink-0" />
+                  <span className="truncate max-w-[65px] sm:max-w-[120px]">{currentUser.fullName}</span>
+                  <span className="font-mono text-amber-950 bg-amber-300/80 px-1 py-0.2 rounded text-[10px] sm:text-xs shrink-0">
                     {currentUser.totalPoints}ن
                   </span>
                 </button>
 
-                {/* Explicit Logout Button - clearly visible with red tint and high contrast */}
+                {/* Explicit Logout Button - clearly visible on all screen sizes */}
                 <button
                   onClick={onLogout}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-300 hover:text-white bg-rose-950/70 hover:bg-rose-900 border border-rose-700/60 rounded-xl transition-all cursor-pointer text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
+                  className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-rose-100 hover:text-white bg-rose-900/90 hover:bg-rose-800 border border-rose-500/80 rounded-xl transition-all cursor-pointer text-xs font-black flex items-center gap-1 shadow-sm shrink-0 active:scale-95"
                   title="تسجيل الخروج من الحساب"
                   aria-label="تسجيل الخروج من الحساب"
                 >
-                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
-                  <span className="hidden xs:inline">خروج</span>
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-300 shrink-0" />
+                  <span className="text-[11px] sm:text-xs font-black">خروج</span>
                 </button>
               </>
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+                className="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
                 title="تسجيل الدخول أو إنشاء حساب للمشاركة"
               >
-                <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-stone-900" />
-                <span>دخول / حساب جديد</span>
+                <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-stone-900 shrink-0" />
+                <span>دخول / تسجيل</span>
               </button>
             )}
           </div>

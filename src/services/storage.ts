@@ -151,6 +151,7 @@ export const StorageService = {
       isMainToday: q.id === quizId,
     }));
     this.saveQuizzes(quizzes);
+    this.dbCrud('set_main_day', { quizId });
   },
 
   saveOrUpdateQuiz(quiz: DailyQuiz): void {
@@ -169,11 +170,13 @@ export const StorageService = {
       updated.unshift(quiz);
     }
     this.saveQuizzes(updated);
+    this.dbCrud('save_quiz', { quiz });
   },
 
   deleteQuiz(quizId: string): void {
     const quizzes = this.getQuizzes().filter(q => q.id !== quizId);
     this.saveQuizzes(quizzes);
+    this.dbCrud('delete_quiz', { quizId });
   },
 
   // --- Users & Authentication ---
@@ -276,6 +279,7 @@ export const StorageService = {
     const users = this.getUsers();
     users.push(user);
     this.saveUsers(users);
+    this.dbCrud('save_user', { user });
   },
 
   updateUser(updatedUser: User): void {
@@ -284,12 +288,14 @@ export const StorageService = {
     if (index >= 0) {
       users[index] = updatedUser;
       this.saveUsers(users);
+      this.dbCrud('save_user', { user: updatedUser });
     }
   },
 
   deleteUser(userId: string): void {
     const users = this.getUsers().filter(u => u.id !== userId);
     this.saveUsers(users);
+    this.dbCrud('delete_user', { userId });
   },
 
   // --- Points Adjustment by Admin ---
@@ -301,9 +307,10 @@ export const StorageService = {
     users[userIndex].totalPoints = Math.max(0, users[userIndex].totalPoints + pointsDelta);
     this.saveUsers(users);
 
+    const logId = 'log-' + Date.now();
     const logs = this.getPointLogs();
     const newLog: PointLog = {
-      id: 'log-' + Date.now(),
+      id: logId,
       userId,
       userName: users[userIndex].fullName,
       change: pointsDelta,
@@ -313,6 +320,15 @@ export const StorageService = {
     };
     logs.unshift(newLog);
     this.savePointLogs(logs);
+
+    this.dbCrud('adjust_points', {
+      userId,
+      pointsDelta,
+      reason,
+      adminName,
+      logId,
+      userName: users[userIndex].fullName,
+    });
   },
 
   // --- Quiz Submission ---
@@ -334,6 +350,7 @@ export const StorageService = {
     user.totalPoints += submission.score;
 
     this.saveUsers(users);
+    this.dbCrud('submit_quiz', { userId, submission });
   },
 
   // --- Point Logs ---
@@ -392,7 +409,67 @@ export const StorageService = {
 
   saveDatabaseConfig(config: DatabaseConfig): void {
     localStorage.setItem(STORAGE_KEYS.DB_CONFIG, JSON.stringify(config));
+    // Persist to server config so any connected client automatically links to Hostinger
+    try {
+      fetch('/api/db/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      }).catch(() => {});
+    } catch {}
     dispatchChange();
+  },
+
+  // Asynchronous real-time CRUD synchronization with Hostinger MySQL / Bridge
+  async dbCrud(action: string, payload: any): Promise<{ success: boolean; message?: string }> {
+    try {
+      const config = this.getDatabaseConfig();
+      const res = await fetch('/api/db/crud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, payload, config }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.warn('Real-time DB CRUD sync notice:', err?.message);
+      return { success: false, message: err?.message };
+    }
+  },
+
+  // Pull and synchronize all data from Hostinger MySQL / phpMyAdmin into the website
+  async syncWithDatabase(): Promise<{ success: boolean; message: string; fromDb: boolean }> {
+    try {
+      const config = this.getDatabaseConfig();
+      const res = await fetch('/api/db/sync', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+
+      if (data && data.success && data.fromDb) {
+        if (Array.isArray(data.quizzes) && data.quizzes.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(data.quizzes));
+        }
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data.users));
+        }
+        if (Array.isArray(data.pointLogs) && data.pointLogs.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.POINT_LOGS, JSON.stringify(data.pointLogs));
+        }
+        this.saveDatabaseConfig({
+          ...config,
+          isConnected: true,
+          lastChecked: new Date().toLocaleTimeString('ar-EG'),
+        });
+        dispatchChange();
+        return { success: true, message: data.message || 'تمت المزامنة بنجاح مع قاعدة بيانات Hostinger!', fromDb: true };
+      }
+
+      return { success: false, message: data?.message || 'لم يتم العثور على قاعدة بيانات متصلة.', fromDb: false };
+    } catch (err: any) {
+      return { success: false, message: `تعذر الاتصال بالسيرفر: ${err.message}`, fromDb: false };
+    }
   },
 
   // Export full SQL Script for phpMyAdmin import
@@ -656,9 +733,29 @@ SET FOREIGN_KEY_CHECKS = 1;
       '        return $q;',
       '    }, $rawQuizzes);',
       '',
+      '    $rawSubs = [];',
+      '    try {',
+      '        $subsStmt = $pdo->query("SELECT * FROM " . $prefix . "submissions ORDER BY submittedAt DESC");',
+      '        $rawSubs = $subsStmt->fetchAll();',
+      '    } catch (Exception $e) {}',
+      '',
       '    $usersStmt = $pdo->query("SELECT * FROM " . $prefix . "users");',
       '    $rawUsers = $usersStmt->fetchAll();',
-      "    $users = array_map(function($u) { $u['submissions'] = []; return $u; }, $rawUsers);",
+      '    $users = array_map(function($u) use ($rawSubs) {',
+      '        $uSubs = array_values(array_filter($rawSubs, function($s) use ($u) { return $s[\'userId\'] === $u[\'id\']; }));',
+      '        $u[\'submissions\'] = array_map(function($s) {',
+      '            return [',
+      '                \'quizId\' => $s[\'quizId\'],',
+      '                \'date\' => substr($s[\'submittedAt\'], 0, 10),',
+      '                \'submittedAt\' => $s[\'submittedAt\'],',
+      '                \'score\' => (int)$s[\'score\'],',
+      '                \'maxScore\' => (int)($s[\'maxScore\'] ?? 20),',
+      '                \'answers\' => json_decode($s[\'answersJson\'] ?? \'{}\', true) ?: [],',
+      '                \'status\' => $s[\'status\'] ?? \'graded\',',
+      '            ];',
+      '        }, $uSubs);',
+      '        return $u;',
+      '    }, $rawUsers);',
       '',
       '    $logsStmt = $pdo->query("SELECT * FROM " . $prefix . "point_logs ORDER BY createdAt DESC");',
       '    $rawLogs = $logsStmt->fetchAll();',
@@ -676,6 +773,88 @@ SET FOREIGN_KEY_CHECKS = 1;
       '',
       "    echo json_encode(['success' => true, 'message' => 'تم جلب البيانات بنجاح من Hostinger!', 'quizzes' => $quizzes, 'users' => $users, 'pointLogs' => $pointLogs], JSON_UNESCAPED_UNICODE);",
       '    exit;',
+      '}',
+      '',
+      "if ($action === 'crud') {",
+      "    $crudAction = $jsonInput['crud_action'] ?? $_POST['crud_action'] ?? '';",
+      "    if ($crudAction === 'save_quiz') {",
+      "        $q = $jsonInput['quiz'] ?? [];",
+      "        if (!empty($q['id'])) {",
+      '            $qSql = "INSERT INTO " . $prefix . "daily_quizzes (id, dayNumber, dayLabel, date, isMainToday, testament, bookName, chapterNumber, title, keyVerse, reflection, audioUrl, audioDuration, versesJson, questionsJson, totalPoints, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), dayLabel=VALUES(dayLabel), isMainToday=VALUES(isMainToday), keyVerse=VALUES(keyVerse), reflection=VALUES(reflection), versesJson=VALUES(versesJson), questionsJson=VALUES(questionsJson), totalPoints=VALUES(totalPoints)";',
+      '            $stmt = $pdo->prepare($qSql);',
+      "            $stmt->execute([$q['id'], $q['dayNumber'] ?? 1, $q['dayLabel'] ?? null, $q['date'], !empty($q['isMainToday']) ? 1 : 0, $q['testament'] ?? 'new', $q['bookName'] ?? '', $q['chapterNumber'] ?? 1, $q['title'] ?? '', $q['keyVerse'] ?? null, $q['reflection'] ?? null, $q['audioUrl'] ?? '', $q['audioDuration'] ?? '5:00', json_encode($q['verses'] ?? []), json_encode($q['questions'] ?? []), $q['totalPoints'] ?? 20, isset($q['published']) && $q['published'] === false ? 0 : 1]);",
+      "            echo json_encode(['success' => true, 'message' => 'تم حفظ الأصحاح في Hostinger!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'delete_quiz') {",
+      "        $quizId = $jsonInput['quizId'] ?? '';",
+      '        if (!empty($quizId)) {',
+      '            $pdo->prepare("DELETE FROM " . $prefix . "daily_quizzes WHERE id = ?")->execute([$quizId]);',
+      "            echo json_encode(['success' => true, 'message' => 'تم حذف المسابقة!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'set_main_day') {",
+      "        $quizId = $jsonInput['quizId'] ?? '';",
+      '        if (!empty($quizId)) {',
+      '            $pdo->prepare("UPDATE " . $prefix . "daily_quizzes SET isMainToday = 0")->execute();',
+      '            $pdo->prepare("UPDATE " . $prefix . "daily_quizzes SET isMainToday = 1 WHERE id = ?")->execute([$quizId]);',
+      "            echo json_encode(['success' => true, 'message' => 'تم تعيين اليوم الرئيسي بنجاح!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'save_user') {",
+      "        $u = $jsonInput['user'] ?? [];",
+      "        if (!empty($u['id'])) {",
+      '            $uSql = "INSERT INTO " . $prefix . "users (id, fullName, email, password, phone, ageGroup, role, totalPoints, quizzesSolved, currentStreak, registeredBy, servantNotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE fullName=VALUES(fullName), email=VALUES(email), password=COALESCE(VALUES(password), password), phone=VALUES(phone), ageGroup=VALUES(ageGroup), role=VALUES(role), totalPoints=VALUES(totalPoints), quizzesSolved=VALUES(quizzesSolved), currentStreak=VALUES(currentStreak), servantNotes=VALUES(servantNotes)";',
+      '            $stmt = $pdo->prepare($uSql);',
+      "            $stmt->execute([$u['id'], $u['fullName'] ?? '', $u['email'] ?? null, $u['password'] ?? null, $u['phone'] ?? '', $u['ageGroup'] ?? 'senior', $u['role'] ?? 'user', $u['totalPoints'] ?? 0, $u['quizzesSolved'] ?? 0, $u['currentStreak'] ?? 0, $u['registeredBy'] ?? 'self', $u['servantNotes'] ?? null]);",
+      "            echo json_encode(['success' => true, 'message' => 'تم حفظ المتسابق بنجاح!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'delete_user') {",
+      "        $userId = $jsonInput['userId'] ?? '';",
+      '        if (!empty($userId)) {',
+      '            $pdo->prepare("DELETE FROM " . $prefix . "users WHERE id = ?")->execute([$userId]);',
+      '            $pdo->prepare("DELETE FROM " . $prefix . "submissions WHERE userId = ?")->execute([$userId]);',
+      '            $pdo->prepare("DELETE FROM " . $prefix . "point_logs WHERE userId = ?")->execute([$userId]);',
+      "            echo json_encode(['success' => true, 'message' => 'تم حذف المستخدم وبياناته!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'submit_quiz') {",
+      "        $userId = $jsonInput['userId'] ?? '';",
+      "        $sub = $jsonInput['submission'] ?? [];",
+      "        if (!empty($userId) && !empty($sub['quizId'])) {",
+      '            $check = $pdo->prepare("SELECT id FROM " . $prefix . "submissions WHERE userId = ? AND quizId = ?");',
+      "            $check->execute([$userId, $sub['quizId']]);",
+      '            if ($check->fetch()) {',
+      "                echo json_encode(['success' => false, 'message' => 'تم الحل مسبقاً.'], JSON_UNESCAPED_UNICODE);",
+      '                exit;',
+      '            }',
+      '            $stmt = $pdo->prepare("INSERT INTO " . $prefix . "submissions (userId, quizId, score, maxScore, answersJson, status, submittedAt) VALUES (?, ?, ?, ?, ?, ?, NOW())");',
+      "            $stmt->execute([$userId, $sub['quizId'], $sub['score'] ?? 0, $sub['maxScore'] ?? 20, json_encode($sub['answers'] ?? []), $sub['status'] ?? 'graded']);",
+      '            $pdo->prepare("UPDATE " . $prefix . "users SET totalPoints = totalPoints + ?, quizzesSolved = quizzesSolved + 1, currentStreak = currentStreak + 1 WHERE id = ?")->execute([$sub[\'score\'] ?? 0, $userId]);',
+      "            echo json_encode(['success' => true, 'message' => 'تم تسجيل الإجابة بنجاح!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
+      "    if ($crudAction === 'adjust_points') {",
+      "        $userId = $jsonInput['userId'] ?? '';",
+      "        $delta = (int)($jsonInput['pointsDelta'] ?? 0);",
+      "        $reason = $jsonInput['reason'] ?? '';",
+      "        $adminName = $jsonInput['adminName'] ?? 'الخادم';",
+      "        $logId = $jsonInput['logId'] ?? ('log-' . time());",
+      "        $userName = $jsonInput['userName'] ?? '';",
+      '        if (!empty($userId)) {',
+      '            $pdo->prepare("INSERT INTO " . $prefix . "point_logs (id, userId, userName, pointsChange, reason, adminName, createdAt) VALUES (?, ?, ?, ?, ?, ?, NOW())")->execute([$logId, $userId, $userName, $delta, $reason, $adminName]);',
+      '            $pdo->prepare("UPDATE " . $prefix . "users SET totalPoints = totalPoints + ? WHERE id = ?")->execute([$delta, $userId]);',
+      "            echo json_encode(['success' => true, 'message' => 'تم تعديل النقاط بنجاح!'], JSON_UNESCAPED_UNICODE);",
+      '            exit;',
+      '        }',
+      '    }',
       '}',
       '',
       "if ($action === 'push') {",

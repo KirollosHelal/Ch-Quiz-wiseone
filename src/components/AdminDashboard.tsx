@@ -285,6 +285,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleLiveSyncNow = async () => {
+    setIsTestingDb(true);
+    setDbTestResult(null);
+    try {
+      const res = await StorageService.syncWithDatabase();
+      setDbTestResult({
+        success: res.success,
+        message: res.message,
+      });
+      if (res.success) {
+        setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
+      }
+    } catch (err: any) {
+      setDbTestResult({
+        success: false,
+        message: `تعذر إتمام المزامنة: ${err.message}`,
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
   // --- PHP Bridge Handlers (Hostinger Zero-Firewall Solution) ---
   const handleDownloadPhpBridge = () => {
     StorageService.saveDatabaseConfig(dbConfig);
@@ -412,9 +434,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         if (Array.isArray(data.users) && data.users.length > 0) {
           StorageService.saveUsers(data.users);
         }
+        if (Array.isArray(data.pointLogs) && data.pointLogs.length > 0) {
+          StorageService.savePointLogs(data.pointLogs);
+        }
         setDbTestResult({
           success: true,
-          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين من Hostinger بنجاح!',
+          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين وسجل النقاط من Hostinger بنجاح!',
         });
         setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
         StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
@@ -577,9 +602,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         if (Array.isArray(data.users) && data.users.length > 0) {
           StorageService.saveUsers(data.users);
         }
+        if (Array.isArray(data.pointLogs) && data.pointLogs.length > 0) {
+          StorageService.savePointLogs(data.pointLogs);
+        }
         setDbTestResult({
           success: true,
-          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين من Hostinger بنجاح!',
+          message: data.message || 'تم جلب وتحديث كافة المسابقات والمتسابقين وسجل النقاط من Hostinger بنجاح!',
         });
         setDbConfig(prev => ({ ...prev, isConnected: true, lastChecked: new Date().toLocaleTimeString('ar-EG') }));
         StorageService.saveDatabaseConfig({ ...dbConfig, isConnected: true });
@@ -1441,6 +1469,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span>ملف .sql</span>
               </button>
             </div>
+          </div>
+
+          {/* Live Synchronization Status & One-Click Fetch Card */}
+          <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-amber-950 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-amber-500/40 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className={`w-3.5 h-3.5 rounded-full ${dbConfig.isConnected ? 'bg-emerald-400 shadow-[0_0_12px_#34d399]' : 'bg-amber-400'} animate-pulse shrink-0`} />
+              <div>
+                <h4 className="font-black text-sm sm:text-base text-amber-200">
+                  {dbConfig.isConnected ? 'مزامنة لحظية نشطة مع قاعدة بيانات Hostinger 🟢' : 'ربط ومزامنة قاعدة بيانات Hostinger'}
+                </h4>
+                <p className="text-xs text-stone-300">
+                  {dbConfig.isConnected
+                    ? `كافة عمليات الإضافة والتعديل والحل وسجل النقاط ترتبط تلقائياً بقاعدة البيانات (${dbConfig.database || 'Hostinger'}). آخر تحديث: ${dbConfig.lastChecked || 'الآن'}`
+                    : 'اختر طريقة الربط بالأسفل لربط الموقع تلقائياً واسترجاع البيانات من قاعدة بيانات Hostinger.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLiveSyncNow}
+              disabled={isTestingDb}
+              className="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isTestingDb ? 'animate-spin' : ''}`} />
+              <span>{isTestingDb ? 'جارٍ جلب وتحديث البيانات...' : '⚡ استرجاع وتحديث كافة البيانات من DB الآن'}</span>
+            </button>
           </div>
 
           {/* Sub Tabs Selector for Database Connection Methods */}

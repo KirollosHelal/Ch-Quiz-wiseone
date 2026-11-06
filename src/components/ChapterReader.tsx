@@ -60,23 +60,23 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
 
       {/* Chapter Banner & Meta with guaranteed dark background and crisp, high-contrast readable text */}
       <div 
-        style={{ backgroundColor: '#14120e', color: '#ffffff' }}
-        className="isolate relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl border-2 border-amber-600/70 overflow-hidden min-h-[240px] flex flex-col justify-end w-full"
+        style={{ backgroundColor: '#181410', color: '#ffffff' }}
+        className="isolate relative text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl border-2 border-amber-500/70 overflow-hidden min-h-[220px] flex flex-col justify-end w-full"
       >
-        {/* Solid fallback background layer */}
-        <div className="absolute inset-0 z-0 bg-[#14120e]" style={{ backgroundColor: '#14120e' }} />
+        {/* Guaranteed dark background fallback */}
+        <div className="absolute inset-0 z-0 bg-[#181410]" style={{ backgroundColor: '#181410' }} />
 
         {/* Background photo with high-fidelity scrim */}
         <img
           src={headerBgImage}
           alt="الكتاب المقدس المفتوح في الكنيسة القبطية"
           referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover object-center z-0 opacity-30 mix-blend-luminosity pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover object-center z-0 opacity-25 mix-blend-luminosity pointer-events-none"
         />
 
         {/* Dual dark scrims ensuring 100% dark contrast regardless of image loading */}
-        <div className="absolute inset-0 bg-stone-950/90 z-0 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/95 to-stone-900/90 z-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-stone-950/85 z-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/90 to-stone-900/80 z-0 pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 text-xs font-bold text-amber-300 mb-2.5 flex-wrap">
@@ -85,35 +85,35 @@ export const ChapterReader: React.FC<ChapterReaderProps> = ({
             </span>
 
             {isFutureLocked && (
-              <span className="bg-rose-500/90 text-white font-extrabold px-2.5 py-1 rounded-lg text-xs shadow-md flex items-center gap-1">
-                <Lock className="w-3 h-3" />
+              <span className="bg-rose-600 text-white font-extrabold px-2.5 py-1 rounded-lg text-xs shadow-md flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5" />
                 <span>مغلق حتى حلول تاريخه</span>
               </span>
             )}
 
             <span className="text-stone-400">·</span>
             <span 
-              style={{ color: '#fef08a' }}
-              className="font-mono text-amber-200 font-bold bg-stone-900/90 px-2 py-0.5 rounded-md border border-stone-700 shadow-xs"
+              style={{ color: '#ffffff', backgroundColor: '#292524' }}
+              className="font-mono text-white font-bold px-2.5 py-0.5 rounded-md border border-stone-600 shadow-xs text-xs"
             >
               {quiz.date}
             </span>
             <span className="text-stone-400">·</span>
-            <span className="bg-stone-900/90 px-2.5 py-0.5 rounded-md text-amber-300 text-xs font-bold border border-amber-500/40">
+            <span className="bg-amber-950/90 text-amber-300 px-2.5 py-0.5 rounded-md text-xs font-bold border border-amber-500/40">
               {testamentLabel}
             </span>
           </div>
 
           <h1 
-            style={{ color: '#fef08a' }}
-            className="text-2xl sm:text-4xl font-black text-amber-200 mb-3 tracking-tight drop-shadow-lg"
+            style={{ color: '#ffffff' }}
+            className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2.5 tracking-tight drop-shadow-md"
           >
             {quiz.bookName} - الأصحاح {quiz.chapterNumber}
           </h1>
 
           <p 
-            style={{ color: '#f5f5f4' }}
-            className="text-stone-100 text-sm sm:text-base font-semibold mb-5 leading-relaxed drop-shadow-md max-w-2xl"
+            style={{ color: '#fcd34d' }}
+            className="text-amber-300 text-sm sm:text-base font-bold mb-4 sm:mb-5 leading-relaxed drop-shadow-xs max-w-2xl"
           >
             {quiz.title}
           </p>
